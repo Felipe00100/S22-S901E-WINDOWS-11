@@ -3,6 +3,7 @@
 #include <ntddk.h>
 #include <wdf.h>
 #include <initguid.h>
+#include <devguid.h>
 
 #define S22_WLAN_POOL_TAG               'NLWS'
 

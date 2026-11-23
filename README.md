@@ -20,7 +20,7 @@ Open-source KMDF drivers, ACPI tables, `Mu-Silicium` UEFI patches, replication s
 | **Internal UFS Storage (`sda41` NTFS)** | ✅ Working | Clean Windows 11 Pro ARM64 boot & clean shutdown (`rw` mount in TWRP, zero `fsck.ntfs`) |
 | **Display (SimpleFB)** | ✅ Working | Native FHD+ panel via UEFI framebuffer |
 | **Touchscreen (`fts2ba61y.sys` v1.0.2.0)** | ✅ Working | Custom MIT KMDF HID Multitouch driver (`ACPI\STMT0001`), TLMM SPI bit-bang + `PM8350C LDO8/LDO11` in UEFI |
-| **Internal Wi-Fi 6E — 5 GHz (`WCN6855`)** | ✅ Working | UEFI PCIe0 Gen2 x1 + QMP PHY + SMMU `CB[74]` emulated bypass + `APIC 0x0D` GIC MSI Frame + `s22wlanpdc.sys` v1.0.16.0 (`iMSI-RX → GICD_ISPENDR[2]`) + `patch_qcwlan8280_wc.ps1` (`MmWriteCombined` DMA patch) |
+| **Internal Wi-Fi 6E — 5 GHz (`WCN6855`)** | ✅ Working | UEFI PCIe0 Gen2 x1 + QMP PHY + SMMU `CB[74]` emulated bypass + `APIC 0x0D` GIC MSI Frame + `s22wlanpdc.sys` v1.0.19.0 (`iMSI-RX → GICD_ISPENDR[2]`) + `patch_qcwlan8280_wc.ps1` (`MmWriteCombined` DMA patch) |
 | **USB 3.0 OTG Host (Mouse/Keyboard/Hub/Tethering)** | ✅ Working | `URS0` (`urssynopsys.sys`) + MAX77705 MUIC `0x06=0x09` + 5V/1500mA boost in UEFI |
 | **UEFI Charger Mode (`ChargerMode.efi`)** | ✅ Working | Live MAX77705 I2C5 telemetry (%, mV, mA, W, °C), 2.5A charging, OLED saver, button-free exit |
 | **1-Click TWRP Reboot (`Reiniciar_TWRP.cmd`)** | ✅ Working | ESP flag `\EFI\S22\reboot_twrp.flag` → PMK8350 `SDAM_2 0x7148` via `SPMIDxe` → warm reboot into TWRP (0 UFS writes) |
@@ -42,7 +42,7 @@ Open-source KMDF drivers, ACPI tables, `Mu-Silicium` UEFI patches, replication s
 │   └── REPLICATION_GUIDE.md       # Complete step-by-step replication & backup guide
 ├── prebuilt/                      # Compiled 100% open-source verified ARM64 drivers (.sys + .inf)
 │   ├── Touchscreen-FTS2BA61Y/     #   fts2ba61y.sys (v1.0.2.0)
-│   └── WiFi-WCN6855-PDC/          #   s22wlanpdc.sys (v1.0.16.0 hardened MSI bridge)
+│   └── WiFi-WCN6855-PDC/          #   s22wlanpdc.sys (v1.0.19.0 hardened MSI bridge)
 ├── drivers/                       # Full C source code for all custom ARM64 KMDF drivers
 │   ├── fts2ba61y-touch/           #   Verified: FTS2BA61Y HID Multitouch
 │   ├── s22-wlan-pdc/              #   Verified: DesignWare iMSI-RX -> GICD MSI bridge

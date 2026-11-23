@@ -276,7 +276,7 @@ S22WlanEvtPrepareHardware(
     RtlZeroMemory(&Ctx->State, sizeof(Ctx->State));
     RtlZeroMemory(Ctx->BankOrMask, sizeof(Ctx->BankOrMask));
     InterlockedExchange(&Ctx->Armed, 0);
-    Ctx->State.Version     = 16;
+    Ctx->State.Version     = 18;
     Ctx->DbiBase           = NULL;
     Ctx->GicdBase          = NULL;
     Ctx->InterruptCount    = 0;
@@ -396,15 +396,10 @@ S22WlanEvtDeviceAdd(
     WDF_IO_QUEUE_CONFIG QConfig;
     WDFDEVICE Device;
     PS22_WLAN_CONTEXT Ctx;
-    DECLARE_CONST_UNICODE_STRING(SddlAdminOnly, L"D:P(A;;GA;;;SY)(A;;GA;;;BA)");
-
     UNREFERENCED_PARAMETER(Driver);
 
-    // Restrict IOCTL device access to SYSTEM and Administrators only (P-6)
-    Status = WdfDeviceInitAssignSDDLString(DeviceInit, &SddlAdminOnly);
-    if (!NT_SUCCESS(Status)) {
-        return Status;
-    }
+    // Enforce device security checks on relative opens; SYSTEM/Admin SDDL is applied via INF [HW] (P-6)
+    WdfDeviceInitSetCharacteristics(DeviceInit, FILE_DEVICE_SECURE_OPEN, FALSE);
 
     WDF_PNPPOWER_EVENT_CALLBACKS_INIT(&Pnp);
     Pnp.EvtDevicePrepareHardware              = S22WlanEvtPrepareHardware;
