@@ -1,6 +1,6 @@
 ;
-; Samsung Galaxy S22 (SM-S901E, r0q) WCN6855/QCA6490 Wi-Fi 2.4GHz PA (AOSS QMP s3e.e) Enabler
-; Windows 11 ARM64 KMDF Driver
+; Samsung Galaxy S22 (SM-S901E, r0q / SM8450) PCIe0 DesignWare iMSI-RX -> GICD MSI Bridge
+; Windows 11 ARM64 KMDF Driver (enables MSI delivery for WCN6855 Wi-Fi 6E)
 ;
 
 [Version]
@@ -9,7 +9,7 @@ Class       = System
 ClassGuid   = {4d36e97d-e325-11ce-bfc1-08002be10318}
 Provider    = %ManufacturerName%
 CatalogFile = s22wlanpdc.cat
-DriverVer   = 11/22/2026,1.0.15.0
+DriverVer   = 11/23/2026,1.0.16.0
 PnpLockdown = 1
 
 [DestinationDirs]
@@ -22,37 +22,37 @@ DefaultDestDir = 13
 s22wlanpdc.sys = 1
 
 [Manufacturer]
-%ManufacturerName% = Standard,NTARM64.10.0...16299
+%ManufacturerName% = Standard,NTARM64.10.0...22000
 
-[Standard.NTARM64.10.0...16299]
-%WlanPdc.DeviceDesc%  = WlanPdc_Install, ACPI\S22W0001
-%WlanPdc.VirtualDesc% = WlanPdc_Install, ROOT\S22W0001
+[Standard.NTARM64.10.0...22000]
+%WlanBridge.DeviceDesc%  = WlanBridge_Install, ACPI\S22W0001
+%WlanBridge.VirtualDesc% = WlanBridge_Install, ROOT\S22W0001
 
-[WlanPdc_Install.NT]
-CopyFiles = WlanPdc_CopyFiles
+[WlanBridge_Install.NT]
+CopyFiles = WlanBridge_CopyFiles
 
-[WlanPdc_CopyFiles]
+[WlanBridge_CopyFiles]
 s22wlanpdc.sys
 
-[WlanPdc_Install.NT.Services]
-AddService = s22wlanpdc, 0x00000002, WlanPdc_Service_Inst
+[WlanBridge_Install.NT.Services]
+AddService = s22wlanpdc, 0x00000002, WlanBridge_Service_Inst
 
-[WlanPdc_Service_Inst]
-DisplayName    = %WlanPdc.ServiceDesc%
+[WlanBridge_Service_Inst]
+DisplayName    = %WlanBridge.ServiceDesc%
 ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
 StartType      = 3               ; SERVICE_DEMAND_START
 ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
 ServiceBinary  = %13%\s22wlanpdc.sys
 
-[WlanPdc_Install.NT.Wdf]
-KmdfService = s22wlanpdc, WlanPdc_WdfSect
+[WlanBridge_Install.NT.Wdf]
+KmdfService = s22wlanpdc, WlanBridge_WdfSect
 
-[WlanPdc_WdfSect]
+[WlanBridge_WdfSect]
 KmdfLibraryVersion = 1.33
 
 [Strings]
-ManufacturerName    = "S22 Windows Community Project"
-DiskName            = "Galaxy S22 WCN6855 Wi-Fi PDC Enabler Package"
-WlanPdc.DeviceDesc  = "Galaxy S22 WCN6855 2.4GHz PA & AOSS QMP Wi-Fi Enabler"
-WlanPdc.VirtualDesc = "Galaxy S22 Virtual Wi-Fi PDC Enabler (Test Mode)"
-WlanPdc.ServiceDesc = "Galaxy S22 WCN6855 AOSS QMP s3e.e Power Enabler KMDF Driver"
+ManufacturerName       = "S22 Windows Community Project"
+DiskName               = "Galaxy S22 SM8450 PCIe0 MSI Bridge Driver Package"
+WlanBridge.DeviceDesc  = "Galaxy S22 SM8450 PCIe0 iMSI-RX to GICD MSI Bridge"
+WlanBridge.VirtualDesc = "Galaxy S22 Virtual PCIe0 MSI Bridge (Test Mode)"
+WlanBridge.ServiceDesc = "Galaxy S22 SM8450 PCIe0 DesignWare iMSI-RX to GICD MSI Bridge KMDF Driver"

@@ -4,7 +4,7 @@ Class       = HIDClass
 ClassGuid   = {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
 Provider    = %ManufacturerName%
 CatalogFile = fts2ba61y.cat
-DriverVer   = 11/22/2026,1.0.1.0
+DriverVer   = 11/23/2026,1.0.2.0
 PnpLockdown = 1
 
 [DestinationDirs]
@@ -17,9 +17,9 @@ DefaultDestDir = 13
 fts2ba61y.sys = 1
 
 [Manufacturer]
-%ManufacturerName% = Standard,NTARM64.10.0...16299
+%ManufacturerName% = Standard,NTARM64.10.0...22000
 
-[Standard.NTARM64.10.0...16299]
+[Standard.NTARM64.10.0...22000]
 %FtsTouch.DeviceDesc%  = FtsTouch_Install, ACPI\STMT0001
 %FtsTouch.DeviceDesc%  = FtsTouch_Install, ACPI\VEN_STMT&DEV_0001
 %FtsTouch.VirtualDesc% = FtsTouch_Install, ROOT\STMT0001

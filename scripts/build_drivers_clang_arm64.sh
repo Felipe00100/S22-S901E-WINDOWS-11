@@ -37,6 +37,8 @@ CFLAGS=(
   -DKMDF_VERSION_MINOR=33
   -DPOOL_NX_OPTIN=1
   -DPOOL_ZERO_DOWN_LEVEL_SUPPORT=1
+  -Wall
+  -Wextra
   -Wno-pragma-pack
   -Wno-ignored-attributes
   -Wno-ignored-pragmas

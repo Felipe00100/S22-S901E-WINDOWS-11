@@ -99,6 +99,7 @@
 #define FTS2BA61Y_RESET_CMD_SIZE            5
 #define FTS2BA61Y_EVENT_COUNT               31
 #define FTS2BA61Y_MAX_XFER_SIZE             520
+#define FTS_REPORT_QUEUE_SIZE               8
 
 //
 // Packed HID Reports
@@ -168,10 +169,14 @@ typedef struct _FTS_DEVICE_CONTEXT {
     USHORT          MaxX;
     USHORT          MaxY;
     UCHAR           TxCount;
+    LARGE_INTEGER   QpcFreq;
     USHORT          ScanTime;
 
-    FTS_SLOT_STATE  Slots[FTS_MAX_CONTACTS];
-    BOOLEAN         ReportDirty;
+    FTS_SLOT_STATE       Slots[FTS_MAX_CONTACTS];
+    FTS_HID_TOUCH_REPORT ReportQueue[FTS_REPORT_QUEUE_SIZE];
+    ULONG                ReportHead;
+    ULONG                ReportTail;
+    ULONG                ReportCount;
 
     // Pre-allocated transfer/event buffers (protected by SpiLock / passive PollTimer)
     UCHAR           SpiTxBuf[FTS2BA61Y_MAX_XFER_SIZE];
@@ -230,8 +235,13 @@ FtsPollEvents(
     _Out_ PBOOLEAN HasUpdate
     );
 
-VOID
-FtsBuildHidReport(
+BOOLEAN
+FtsDequeueHidReport(
     _In_ PFTS_DEVICE_CONTEXT DevCtx,
     _Out_ PFTS_HID_TOUCH_REPORT Report
+    );
+
+VOID
+FtsClearReportState(
+    _In_ PFTS_DEVICE_CONTEXT DevCtx
     );

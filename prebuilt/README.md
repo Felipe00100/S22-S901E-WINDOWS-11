@@ -4,8 +4,8 @@ This folder contains **only 100% open-source, MIT-licensed drivers compiled from
 
 | Folder | Driver | Version | Status | Hardware |
 | :--- | :--- | :--- | :--- | :--- |
-| `Touchscreen-FTS2BA61Y/` | `fts2ba61y.sys` + `fts2ba61y.inf` | `1.0.1.0` | **Verified** | STMicroelectronics FTS2BA61Y 10-finger HID Multitouch (TLMM SPI bit-bang) |
-| `WiFi-WCN6855-PDC/` | `s22wlanpdc.sys` + `s22wlanpdc.inf` | `1.0.15.0` | **Verified** | SM8450 PCIe0 DesignWare `iMSI-RX` → `GICD_ISPENDR[2]` MSI Bridge for WCN6855 Wi-Fi 6E |
+| `Touchscreen-FTS2BA61Y/` | `fts2ba61y.sys` + `fts2ba61y.inf` | `1.0.2.0` | **Verified** | STMicroelectronics FTS2BA61Y 10-finger HID Multitouch (TLMM SPI bit-bang) |
+| `WiFi-WCN6855-PDC/` | `s22wlanpdc.sys` + `s22wlanpdc.inf` | `1.0.16.0` | **Verified** | SM8450 PCIe0 DesignWare `iMSI-RX` → `GICD_ISPENDR[2]` MSI Bridge for WCN6855 Wi-Fi 6E |
 
 ## Test-Signing Notice
 Windows 11 ARM64 requires drivers to be cataloged (`.cat`) and signed. Private keys and personal `.cer`/`.cat` files are intentionally omitted from Git.

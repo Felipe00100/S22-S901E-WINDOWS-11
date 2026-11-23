@@ -10,6 +10,104 @@ FtsSleepMs(
     KeDelayExecutionThread(KernelMode, FALSE, &Interval);
 }
 
+static USHORT
+FtsQueryScanTime100Us(
+    _In_ PFTS_DEVICE_CONTEXT DevCtx
+    )
+{
+    ULONGLONG Freq = (ULONGLONG)DevCtx->QpcFreq.QuadPart;
+    LARGE_INTEGER Now;
+    ULONGLONG Secs;
+    ULONGLONG Rem;
+    ULONGLONG Units100Us;
+
+    if (Freq == 0ULL) {
+        return (USHORT)(DevCtx->ScanTime + 40U);
+    }
+
+    Now = KeQueryPerformanceCounter(NULL);
+    Secs = (ULONGLONG)Now.QuadPart / Freq;
+    Rem  = (ULONGLONG)Now.QuadPart % Freq;
+    Units100Us = (Secs * 10000ULL) + ((Rem * 10000ULL) / Freq);
+    return (USHORT)(Units100Us & 0xFFFFULL);
+}
+
+static VOID
+FtsBuildAndEnqueueReportLocked(
+    _In_ PFTS_DEVICE_CONTEXT DevCtx
+    )
+{
+    FTS_HID_TOUCH_REPORT Report;
+    UCHAR i;
+    UCHAR Count = 0;
+
+    RtlZeroMemory(&Report, sizeof(Report));
+    Report.ReportId = REPORTID_TOUCH;
+
+    for (i = 0; i < FTS_MAX_CONTACTS; i++) {
+        if (DevCtx->Slots[i].Active) {
+            UCHAR StatusBits = FTS_STATUS_TIP_SWITCH | FTS_STATUS_IN_RANGE;
+            if (DevCtx->Slots[i].Confident) {
+                StatusBits |= FTS_STATUS_CONFIDENCE;
+            }
+            Report.Contacts[Count].Status    = StatusBits;
+            Report.Contacts[Count].ContactId = i;
+            Report.Contacts[Count].Pressure  = DevCtx->Slots[i].Pressure;
+            Report.Contacts[Count].X         = DevCtx->Slots[i].X;
+            Report.Contacts[Count].Y         = DevCtx->Slots[i].Y;
+            Count++;
+        } else if (DevCtx->Slots[i].ReleasePending) {
+            // Emit explicit final TipSwitch=0 / InRange=0 report per Windows Touch HID spec
+            UCHAR StatusBits = DevCtx->Slots[i].Confident ? FTS_STATUS_CONFIDENCE : 0;
+            Report.Contacts[Count].Status    = StatusBits;
+            Report.Contacts[Count].ContactId = i;
+            Report.Contacts[Count].Pressure  = 0;
+            Report.Contacts[Count].X         = DevCtx->Slots[i].X;
+            Report.Contacts[Count].Y         = DevCtx->Slots[i].Y;
+            DevCtx->Slots[i].ReleasePending  = FALSE;
+            Count++;
+        }
+    }
+
+    Report.ContactCount = Count;
+    Report.ScanTime     = DevCtx->ScanTime;
+
+    // Short FIFO ring queue (T-9): prevents quick press+release taps from being lost
+    if (DevCtx->ReportCount == FTS_REPORT_QUEUE_SIZE) {
+        DevCtx->ReportHead = (DevCtx->ReportHead + 1U) % FTS_REPORT_QUEUE_SIZE;
+        DevCtx->ReportCount--;
+    }
+    DevCtx->ReportQueue[DevCtx->ReportTail] = Report;
+    DevCtx->ReportTail = (DevCtx->ReportTail + 1U) % FTS_REPORT_QUEUE_SIZE;
+    DevCtx->ReportCount++;
+}
+
+static VOID
+FtsReleaseAllActiveSlots(
+    _In_ PFTS_DEVICE_CONTEXT DevCtx,
+    _Out_ PBOOLEAN HasUpdate
+    )
+{
+    UCHAR i;
+    BOOLEAN HadActive = FALSE;
+
+    WdfSpinLockAcquire(DevCtx->StateLock);
+    for (i = 0; i < FTS_MAX_CONTACTS; i++) {
+        if (DevCtx->Slots[i].Active) {
+            DevCtx->Slots[i].Active         = FALSE;
+            DevCtx->Slots[i].ReleasePending = TRUE;
+            DevCtx->Slots[i].Pressure       = 0;
+            HadActive = TRUE;
+        }
+    }
+    if (HadActive) {
+        DevCtx->ScanTime = FtsQueryScanTime100Us(DevCtx);
+        FtsBuildAndEnqueueReportLocked(DevCtx);
+        *HasUpdate = TRUE;
+    }
+    WdfSpinLockRelease(DevCtx->StateLock);
+}
+
 static NTSTATUS
 FtsWriteLocked(
     _In_ PFTS_DEVICE_CONTEXT DevCtx,
@@ -22,7 +120,7 @@ FtsWriteLocked(
     UCHAR TxBuf[64];
     ULONG Len = CmdLen + DataLen;
 
-    if (CmdLen == 0 || (Len + 1) > sizeof(TxBuf)) {
+    if (CmdLen == 0 || Len < CmdLen || (Len + 1U) > sizeof(TxBuf)) {
         return STATUS_INVALID_PARAMETER;
     }
 
@@ -67,12 +165,36 @@ FtsRead(
     _In_ ULONG RxLen
     )
 {
-    ULONG EffectiveTxLen = TxLen;
+    ULONG EffectiveTxLen;
     ULONG TotalLen;
+    BOOLEAN IsDirectCmd;
     NTSTATUS Status;
 
-    if (TxLen == 0 || RxLen == 0 || (RxLen + 8) > FTS2BA61Y_MAX_XFER_SIZE) {
+    if (Reg == NULL || OutBuf == NULL || TxLen == 0 || RxLen == 0) {
         return STATUS_INVALID_PARAMETER;
+    }
+
+    IsDirectCmd = (Reg[0] == FTS2BA61Y_CMD_READ_EVENT ||
+                   Reg[0] == FTS2BA61Y_CMD_REG_W ||
+                   Reg[0] == FTS2BA61Y_CMD_REG_R);
+
+    // Strict TxLen & TotalLen bounds check (T-8), matching Linux fts2ba61y_read()
+    if (IsDirectCmd) {
+        EffectiveTxLen = TxLen;
+        if (TxLen > FTS2BA61Y_MAX_XFER_SIZE ||
+            RxLen > FTS2BA61Y_MAX_XFER_SIZE ||
+            (RxLen + 1U + EffectiveTxLen) > FTS2BA61Y_MAX_XFER_SIZE)
+        {
+            return STATUS_INVALID_PARAMETER;
+        }
+    } else {
+        if (TxLen > 3U ||
+            RxLen > FTS2BA61Y_MAX_XFER_SIZE ||
+            (RxLen + 4U) > FTS2BA61Y_MAX_XFER_SIZE)
+        {
+            return STATUS_INVALID_PARAMETER;
+        }
+        EffectiveTxLen = 3U;
     }
 
     WdfWaitLockAcquire(DevCtx->SpiLock, NULL);
@@ -80,23 +202,20 @@ FtsRead(
     RtlZeroMemory(DevCtx->SpiTxBuf, sizeof(DevCtx->SpiTxBuf));
     RtlZeroMemory(DevCtx->SpiRxBuf, sizeof(DevCtx->SpiRxBuf));
 
-    if (Reg[0] == FTS2BA61Y_CMD_READ_EVENT ||
-        Reg[0] == FTS2BA61Y_CMD_REG_W ||
-        Reg[0] == FTS2BA61Y_CMD_REG_R)
-    {
+    if (IsDirectCmd) {
         RtlCopyMemory(DevCtx->SpiTxBuf, Reg, TxLen);
     } else {
+        // Matches Linux fts2ba61y_read(): 0xD1 + big-endian 16-bit reg_val (0x0000 for TxLen==1)
         USHORT RegVal = 0;
-        if (TxLen == 2) {
+        if (TxLen == 2U) {
             RegVal = Reg[0];
-        } else if (TxLen == 3) {
+        } else if (TxLen == 3U) {
             RegVal = (USHORT)(Reg[0] | ((USHORT)Reg[1] << 8));
         }
 
         DevCtx->SpiTxBuf[0] = FTS2BA61Y_CMD_CUSTOM_R;
         DevCtx->SpiTxBuf[1] = (UCHAR)(RegVal >> 8);
         DevCtx->SpiTxBuf[2] = (UCHAR)(RegVal & 0xFF);
-        EffectiveTxLen = 3;
 
         Status = FtsWriteLocked(DevCtx, Reg, 1, NULL, 0);
         if (!NT_SUCCESS(Status)) {
@@ -104,10 +223,10 @@ FtsRead(
         }
     }
 
-    TotalLen = RxLen + 1 + EffectiveTxLen;
+    TotalLen = RxLen + 1U + EffectiveTxLen;
     Status = TlmmSpiTransferLocked(DevCtx, DevCtx->SpiTxBuf, DevCtx->SpiRxBuf, TotalLen);
     if (NT_SUCCESS(Status)) {
-        RtlCopyMemory(OutBuf, DevCtx->SpiRxBuf + 1 + EffectiveTxLen, RxLen);
+        RtlCopyMemory(OutBuf, DevCtx->SpiRxBuf + 1U + EffectiveTxLen, RxLen);
     }
 
 Exit:
@@ -124,7 +243,9 @@ FtsWaitForReady(
     UCHAR Cmd = FTS2BA61Y_CMD_READ_EVENT;
     INT Retries;
 
-    for (Retries = 0; Retries < 10; Retries++) {
+    // Matches Linux fts2ba61y_wait_for_ready() (5 retries * 20 ms = 100 ms max)
+    // Layout verified against Linux fts2ba61y.c: FTS2BA61Y_MASK_STYPE = GENMASK(5,2)
+    for (Retries = 0; Retries < 5; Retries++) {
         NTSTATUS Status = FtsRead(DevCtx, &Cmd, 1, Buffer, sizeof(Buffer));
         if (NT_SUCCESS(Status)) {
             UCHAR Stype = (Buffer[0] >> 2) & 0x0F;
@@ -238,7 +359,7 @@ FtsHardwareInit(
 
     ResetStatus = FtsReset(DevCtx);
     if (!NT_SUCCESS(ResetStatus)) {
-        FtsSleepMs(50);
+        FtsSleepMs(30);
         ResetStatus = FtsReset(DevCtx);
     }
 
@@ -323,14 +444,21 @@ FtsPollEvents(
     }
 
     Status = FtsRead(DevCtx, &Cmd, 1, Buffer, FTS2BA61Y_EVENT_BUFF_SIZE);
-    if (!NT_SUCCESS(Status) || Buffer[0] == 0) {
+    if (!NT_SUCCESS(Status)) {
+        // Release any active fingers so a transient SPI error never leaves a stuck touch (T-1)
+        FtsReleaseAllActiveSlots(DevCtx, HasUpdate);
         return Status;
     }
+    if (Buffer[0] == 0) {
+        return STATUS_SUCCESS;
+    }
 
+    // Verified verbatim against Linux drivers/input/touchscreen/fts2ba61y.c (FTS2BA61Y_MASK_LEFT_EVENTS = GENMASK(4,0))
     LeftEvents = Buffer[7] & 0x1F;
     if (LeftEvents >= FTS2BA61Y_EVENT_COUNT) {
         UCHAR ClearCmd = FTS2BA61Y_CMD_CLEAR_EVENTS;
         (VOID)FtsWrite(DevCtx, &ClearCmd, 1, NULL, 0);
+        FtsReleaseAllActiveSlots(DevCtx, HasUpdate);
         return STATUS_DATA_OVERRUN;
     }
 
@@ -342,6 +470,7 @@ FtsPollEvents(
             Buffer + FTS2BA61Y_EVENT_BUFF_SIZE,
             LeftEvents * FTS2BA61Y_EVENT_BUFF_SIZE);
         if (!NT_SUCCESS(Status)) {
+            FtsReleaseAllActiveSlots(DevCtx, HasUpdate);
             return Status;
         }
     }
@@ -358,6 +487,7 @@ FtsPollEvents(
 
             if (Tid < FTS_MAX_CONTACTS) {
                 if (Action == FTS2BA61Y_ACTION_PRESS || Action == FTS2BA61Y_ACTION_MOVE) {
+                    // Verified verbatim against Linux fts2ba61y.c (TTYPE_3_2 = Ev[6][7:6], TTYPE_1_0 = Ev[7][1:0])
                     UCHAR TType = (UCHAR)((((Ev[6] >> 6) & 0x03) << 2) | (Ev[7] & 0x03));
                     if (TType == FTS2BA61Y_TOUCHTYPE_NORMAL ||
                         TType == FTS2BA61Y_TOUCHTYPE_PALM ||
@@ -366,18 +496,28 @@ FtsPollEvents(
                     {
                         USHORT RawX = (USHORT)(((USHORT)Ev[1] << 4) | ((Ev[3] >> 4) & 0x0F));
                         USHORT RawY = (USHORT)(((USHORT)Ev[2] << 4) | (Ev[3] & 0x0F));
+                        ULONG ScaledX = (DevCtx->MaxX > 0)
+                            ? (((ULONG)RawX * FTS_LOGICAL_MAX_X) / DevCtx->MaxX)
+                            : (ULONG)RawX;
+                        ULONG ScaledY = (DevCtx->MaxY > 0)
+                            ? (((ULONG)RawY * FTS_LOGICAL_MAX_Y) / DevCtx->MaxY)
+                            : (ULONG)RawY;
+                        UCHAR RawPress = Ev[6] & 0x3F;
+
+                        // Clamp to HID Logical Maximum [0..4095] (T-2)
+                        if (ScaledX > FTS_LOGICAL_MAX_X) {
+                            ScaledX = FTS_LOGICAL_MAX_X;
+                        }
+                        if (ScaledY > FTS_LOGICAL_MAX_Y) {
+                            ScaledY = FTS_LOGICAL_MAX_Y;
+                        }
 
                         DevCtx->Slots[Tid].Active         = TRUE;
                         DevCtx->Slots[Tid].ReleasePending = FALSE;
                         DevCtx->Slots[Tid].Confident      = (TType != FTS2BA61Y_TOUCHTYPE_PALM);
-                        DevCtx->Slots[Tid].X = (DevCtx->MaxX > 0)
-                            ? (USHORT)(((ULONG)RawX * FTS_LOGICAL_MAX_X) / DevCtx->MaxX)
-                            : RawX;
-                        DevCtx->Slots[Tid].Y = (DevCtx->MaxY > 0)
-                            ? (USHORT)(((ULONG)RawY * FTS_LOGICAL_MAX_Y) / DevCtx->MaxY)
-                            : RawY;
-                        UCHAR RawPress = Ev[6] & 0x3F;
-                        DevCtx->Slots[Tid].Pressure = (RawPress > 0) ? RawPress : 1;
+                        DevCtx->Slots[Tid].X              = (USHORT)ScaledX;
+                        DevCtx->Slots[Tid].Y              = (USHORT)ScaledY;
+                        DevCtx->Slots[Tid].Pressure       = (RawPress > 0) ? RawPress : 1;
                         *HasUpdate = TRUE;
                     }
                 } else if (Action == FTS2BA61Y_ACTION_RELEASE) {
@@ -393,56 +533,43 @@ FtsPollEvents(
     }
 
     if (*HasUpdate) {
-        DevCtx->ScanTime += 40; // ~4ms in 100us units
-        DevCtx->ReportDirty = TRUE;
+        DevCtx->ScanTime = FtsQueryScanTime100Us(DevCtx);
+        FtsBuildAndEnqueueReportLocked(DevCtx);
     }
 
     WdfSpinLockRelease(DevCtx->StateLock);
     return Status;
 }
 
-VOID
-FtsBuildHidReport(
+BOOLEAN
+FtsDequeueHidReport(
     _In_ PFTS_DEVICE_CONTEXT DevCtx,
     _Out_ PFTS_HID_TOUCH_REPORT Report
     )
 {
-    UCHAR i;
-    UCHAR Count = 0;
-
-    RtlZeroMemory(Report, sizeof(*Report));
-    Report->ReportId = REPORTID_TOUCH;
+    BOOLEAN Found = FALSE;
 
     WdfSpinLockAcquire(DevCtx->StateLock);
-
-    for (i = 0; i < FTS_MAX_CONTACTS; i++) {
-        if (DevCtx->Slots[i].Active) {
-            UCHAR StatusBits = FTS_STATUS_TIP_SWITCH | FTS_STATUS_IN_RANGE;
-            if (DevCtx->Slots[i].Confident) {
-                StatusBits |= FTS_STATUS_CONFIDENCE;
-            }
-            Report->Contacts[Count].Status    = StatusBits;
-            Report->Contacts[Count].ContactId = i;
-            Report->Contacts[Count].Pressure  = DevCtx->Slots[i].Pressure;
-            Report->Contacts[Count].X         = DevCtx->Slots[i].X;
-            Report->Contacts[Count].Y         = DevCtx->Slots[i].Y;
-            Count++;
-        } else if (DevCtx->Slots[i].ReleasePending) {
-            // Emit explicit final TipSwitch=0 / InRange=0 report per Windows Touch HID spec
-            UCHAR StatusBits = DevCtx->Slots[i].Confident ? FTS_STATUS_CONFIDENCE : 0;
-            Report->Contacts[Count].Status    = StatusBits;
-            Report->Contacts[Count].ContactId = i;
-            Report->Contacts[Count].Pressure  = 0;
-            Report->Contacts[Count].X         = DevCtx->Slots[i].X;
-            Report->Contacts[Count].Y         = DevCtx->Slots[i].Y;
-            DevCtx->Slots[i].ReleasePending   = FALSE;
-            Count++;
-        }
+    if (DevCtx->ReportCount > 0) {
+        *Report = DevCtx->ReportQueue[DevCtx->ReportHead];
+        DevCtx->ReportHead = (DevCtx->ReportHead + 1U) % FTS_REPORT_QUEUE_SIZE;
+        DevCtx->ReportCount--;
+        Found = TRUE;
     }
+    WdfSpinLockRelease(DevCtx->StateLock);
 
-    Report->ContactCount = Count;
-    Report->ScanTime     = DevCtx->ScanTime;
-    DevCtx->ReportDirty  = FALSE;
+    return Found;
+}
 
+VOID
+FtsClearReportState(
+    _In_ PFTS_DEVICE_CONTEXT DevCtx
+    )
+{
+    WdfSpinLockAcquire(DevCtx->StateLock);
+    RtlZeroMemory(DevCtx->Slots, sizeof(DevCtx->Slots));
+    DevCtx->ReportHead  = 0;
+    DevCtx->ReportTail  = 0;
+    DevCtx->ReportCount = 0;
     WdfSpinLockRelease(DevCtx->StateLock);
 }

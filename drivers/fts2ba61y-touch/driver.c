@@ -36,10 +36,10 @@
     0x65, 0x11,                         /*   Unit (cm) */ \
     0x09, 0x30,                         /*   Usage (X) */ \
     0x35, 0x00,                         /*   Physical Minimum (0) */ \
-    0x46, 0xB8, 0x02,                   /*   Physical Maximum (696 -> 6.96 cm) */ \
+    0x46, 0x89, 0x02,                   /*   Physical Maximum (649 -> 6.49 cm = 64.9 mm, S22 6.1" 1080x2340) */ \
     0x81, 0x02,                         /*   Input (Data,Var,Abs) */ \
     0x09, 0x31,                         /*   Usage (Y) */ \
-    0x46, 0xDE, 0x05,                   /*   Physical Maximum (1502 -> 15.02 cm) */ \
+    0x46, 0x7F, 0x05,                   /*   Physical Maximum (1407 -> 14.07 cm = 140.7 mm, S22 6.1" 1080x2340) */ \
     0x81, 0x02,                         /*   Input (Data,Var,Abs) */ \
     0x55, 0x00,                         /*   Unit Exponent (0) */ \
     0x65, 0x00,                         /*   Unit (None) */ \
@@ -108,8 +108,10 @@ static const HID_DESCRIPTOR g_FtsHidDescriptor = {
     0x00,
     0x01,
     {
-        HID_REPORT_DESCRIPTOR_TYPE,
-        sizeof(g_FtsHidReportDescriptor)
+        {
+            HID_REPORT_DESCRIPTOR_TYPE,
+            sizeof(g_FtsHidReportDescriptor)
+        }
     }
 };
 
@@ -133,18 +135,31 @@ FtsCompletePendingReadReport(
     SIZE_T OutLen;
     FTS_HID_TOUCH_REPORT Report;
 
-    Status = WdfIoQueueRetrieveNextRequest(DevCtx->ReadReportQueue, &Request);
-    if (!NT_SUCCESS(Status)) {
-        return;
-    }
+    for (;;) {
+        if (!FtsDequeueHidReport(DevCtx, &Report)) {
+            break;
+        }
 
-    Status = WdfRequestRetrieveOutputBuffer(Request, sizeof(Report), &OutBuf, &OutLen);
-    if (NT_SUCCESS(Status)) {
-        FtsBuildHidReport(DevCtx, &Report);
-        RtlCopyMemory(OutBuf, &Report, sizeof(Report));
-        WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, sizeof(Report));
-    } else {
-        WdfRequestComplete(Request, Status);
+        Status = WdfIoQueueRetrieveNextRequest(DevCtx->ReadReportQueue, &Request);
+        if (!NT_SUCCESS(Status)) {
+            // No pending HID read IRP yet; re-queue report at head so quick tap is not lost
+            WdfSpinLockAcquire(DevCtx->StateLock);
+            if (DevCtx->ReportCount < FTS_REPORT_QUEUE_SIZE) {
+                DevCtx->ReportHead = (DevCtx->ReportHead + FTS_REPORT_QUEUE_SIZE - 1U) % FTS_REPORT_QUEUE_SIZE;
+                DevCtx->ReportQueue[DevCtx->ReportHead] = Report;
+                DevCtx->ReportCount++;
+            }
+            WdfSpinLockRelease(DevCtx->StateLock);
+            break;
+        }
+
+        Status = WdfRequestRetrieveOutputBuffer(Request, sizeof(Report), &OutBuf, &OutLen);
+        if (NT_SUCCESS(Status)) {
+            RtlCopyMemory(OutBuf, &Report, sizeof(Report));
+            WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, sizeof(Report));
+        } else {
+            WdfRequestComplete(Request, Status);
+        }
     }
 }
 
@@ -163,7 +178,8 @@ FtsEvtPollTimer(
         return;
     }
 
-    if (NT_SUCCESS(FtsPollEvents(DevCtx, &HasUpdate)) && HasUpdate) {
+    (VOID)FtsPollEvents(DevCtx, &HasUpdate);
+    if (HasUpdate) {
         FtsCompletePendingReadReport(DevCtx);
     }
 
@@ -233,10 +249,8 @@ FtsEvtIoInternalDeviceControl(
     case IOCTL_HID_READ_REPORT:
         Status = WdfRequestForwardToIoQueue(Request, DevCtx->ReadReportQueue);
         if (NT_SUCCESS(Status)) {
-            if (DevCtx->ReportDirty) {
-                FtsCompletePendingReadReport(DevCtx);
-            }
-            return; // Request is now owned by ReadReportQueue
+            FtsCompletePendingReadReport(DevCtx);
+            return; // Request is now owned by ReadReportQueue (or completed above)
         }
         break;
 
@@ -443,7 +457,14 @@ FtsEvtDevicePrepareHardware(
         goto CleanupConfigError;
     }
 
-    return FtsHardwareInit(DevCtx);
+    (VOID)KeQueryPerformanceCounter(&DevCtx->QpcFreq);
+    DevCtx->MaxX = 1079;
+    DevCtx->MaxY = 2339;
+    DevCtx->TxCount = FTS_MAX_CONTACTS;
+    FtsClearReportState(DevCtx);
+
+    // Defer SPI hardware init to EvtDeviceD0Entry (T-4) so D0 power rails are guaranteed active.
+    return STATUS_SUCCESS;
 
 CleanupInsufficientResources:
     if (DevCtx->SpiGpioBase != NULL) {
@@ -505,22 +526,20 @@ FtsEvtDeviceD0Entry(
     NTSTATUS Status;
 
     if (!DevCtx->VirtualMode) {
-        // On resume from sleep/Dx (or if hardware was not ready), re-configure TLMM
-        // SPI/IRQ pins and reset/re-initialize the FTS2BA61Y controller in case rails dropped.
-        if (PreviousState != WdfPowerDeviceD3Final || !DevCtx->HardwareReady) {
-            WdfSpinLockAcquire(DevCtx->StateLock);
-            RtlZeroMemory(DevCtx->Slots, sizeof(DevCtx->Slots));
-            DevCtx->ReportDirty = FALSE;
-            WdfSpinLockRelease(DevCtx->StateLock);
+        // Initialize hardware in D0Entry (initial boot and resume from Dx) after rails are on (T-4).
+        if (!DevCtx->HardwareReady || PreviousState != WdfPowerDeviceD3Final) {
+            FtsClearReportState(DevCtx);
 
             Status = FtsHardwareInit(DevCtx);
             if (!NT_SUCCESS(Status)) {
                 KdPrintEx((DPFLTR_IHVDRIVER_ID, DPFLTR_ERROR_LEVEL,
-                    "FTS2BA61Y: D0Entry re-init failed after state %d (0x%08X)\n",
+                    "FTS2BA61Y: D0Entry hardware init failed after state %d (0x%08X)\n",
                     PreviousState, Status));
                 return Status;
             }
         }
+    } else {
+        (VOID)FtsHardwareInit(DevCtx);
     }
 
     Status = FtsSetSensing(DevCtx, TRUE);
@@ -623,6 +642,7 @@ FtsEvtDeviceAdd(
     // 4ms (~250 Hz) passive-level one-shot timer (KMDF requires Period=0 for passive timers)
     WDF_TIMER_CONFIG_INIT(&TimerConfig, FtsEvtPollTimer);
     TimerConfig.AutomaticSerialization = FALSE;
+    TimerConfig.TolerableDelay         = 0;
     WDF_OBJECT_ATTRIBUTES_INIT(&Attributes);
     Attributes.ParentObject = Device;
     Attributes.ExecutionLevel = WdfExecutionLevelPassive;
