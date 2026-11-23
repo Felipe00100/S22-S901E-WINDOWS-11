@@ -1,0 +1,58 @@
+;
+; Samsung Galaxy S22 (SM-S901E, r0q) WCN6855/QCA6490 Wi-Fi 2.4GHz PA (AOSS QMP s3e.e) Enabler
+; Windows 11 ARM64 KMDF Driver
+;
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = System
+ClassGuid   = {4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider    = %ManufacturerName%
+CatalogFile = s22wlanpdc.cat
+DriverVer   = 11/22/2026,1.0.15.0
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+s22wlanpdc.sys = 1
+
+[Manufacturer]
+%ManufacturerName% = Standard,NTARM64.10.0...16299
+
+[Standard.NTARM64.10.0...16299]
+%WlanPdc.DeviceDesc%  = WlanPdc_Install, ACPI\S22W0001
+%WlanPdc.VirtualDesc% = WlanPdc_Install, ROOT\S22W0001
+
+[WlanPdc_Install.NT]
+CopyFiles = WlanPdc_CopyFiles
+
+[WlanPdc_CopyFiles]
+s22wlanpdc.sys
+
+[WlanPdc_Install.NT.Services]
+AddService = s22wlanpdc, 0x00000002, WlanPdc_Service_Inst
+
+[WlanPdc_Service_Inst]
+DisplayName    = %WlanPdc.ServiceDesc%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %13%\s22wlanpdc.sys
+
+[WlanPdc_Install.NT.Wdf]
+KmdfService = s22wlanpdc, WlanPdc_WdfSect
+
+[WlanPdc_WdfSect]
+KmdfLibraryVersion = 1.33
+
+[Strings]
+ManufacturerName    = "S22 Windows Community Project"
+DiskName            = "Galaxy S22 WCN6855 Wi-Fi PDC Enabler Package"
+WlanPdc.DeviceDesc  = "Galaxy S22 WCN6855 2.4GHz PA & AOSS QMP Wi-Fi Enabler"
+WlanPdc.VirtualDesc = "Galaxy S22 Virtual Wi-Fi PDC Enabler (Test Mode)"
+WlanPdc.ServiceDesc = "Galaxy S22 WCN6855 AOSS QMP s3e.e Power Enabler KMDF Driver"

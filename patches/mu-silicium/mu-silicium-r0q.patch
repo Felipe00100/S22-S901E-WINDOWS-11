@@ -1,0 +1,2122 @@
+diff --git a/Platforms/Samsung/r0qPkg/Library/MemoryMapLib/MemoryMapLib.c b/Platforms/Samsung/r0qPkg/Library/MemoryMapLib/MemoryMapLib.c
+index 43e8f6f2..65d4aaa3 100644
+--- a/Platforms/Samsung/r0qPkg/Library/MemoryMapLib/MemoryMapLib.c
++++ b/Platforms/Samsung/r0qPkg/Library/MemoryMapLib/MemoryMapLib.c
+@@ -43,10 +43,12 @@ gMemoryDescriptor[] = {
+   {"IMEM Cookie Base",  0x146AA000, 0x00016000, AddDev, MMAP_IO, INITIALIZED, Conv,   NS_DEVICE},
+ 
+   // Register Regions
++  {"GCC_CLK_CTL",       0x00100000, 0x00200000, NoHob,  MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
+   {"IPC_ROUTER_TOP",    0x00400000, 0x00100000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
+   {"SECURITY CONTROL",  0x00780000, 0x00007000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
+   {"QUP",               0x00800000, 0x00300000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
+   {"PRNG_CFG_PRNG",     0x010C0000, 0x0000C000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
++  {"PCIE_0_AHB",        0x01C00000, 0x00010000, NoHob,  MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
+   {"CRYPTO0 CRYPTO",    0x01DC0000, 0x00040000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
+   {"TCSR_TCSR_REGS",    0x01FC0000, 0x00030000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
+   {"PERIPH_SS",         0x08800000, 0x00100000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
+@@ -54,7 +56,8 @@ gMemoryDescriptor[] = {
+   {"AOSS",              0x0B000000, 0x04000000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
+   {"TLMM",              0x0F000000, 0x01000000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
+   {"SMMU",              0x15000000, 0x00200000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
+-  {"APSS_HM",           0x17000000, 0x02000000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE}
++  {"APSS_HM",           0x17000000, 0x02000000, AddDev, MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE},
++  {"PCIE_0_AXI",        0x60000000, 0x04000000, NoHob,  MMAP_IO, UNCACHEABLE, MmIO,   NS_DEVICE}
+ };
+ 
+ VOID
+diff --git a/Resources/MuPatches/Boot-Manager.patch b/Resources/MuPatches/Boot-Manager.patch
+index ecf20f62..4c695940 100644
+--- a/Resources/MuPatches/Boot-Manager.patch
++++ b/Resources/MuPatches/Boot-Manager.patch
+@@ -1,17 +1,18 @@
+ diff --git a/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.c b/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.c
+-index ef19319614..72b399bfa0 100644
++index 5bba6ea816..1455675173 100644
+ --- a/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.c
+ +++ b/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.c
+-@@ -6,6 +6,8 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
++@@ -6,6 +6,9 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
+  
+  **/
+  
+ +#include <Library/UefiRuntimeServicesTableLib.h>
+ +
+++#include <Library/PrintLib.h>
+  #include "BootManagerMenu.h"
+  
+  EFI_HII_HANDLE  gStringPackHandle;
+-@@ -344,9 +346,9 @@ IgnoreBootOption (
++@@ -344,9 +347,9 @@ IgnoreBootOption (
+    }
+  
+    //
+@@ -23,7 +24,7 @@ index ef19319614..72b399bfa0 100644
+      return TRUE;
+    }
+  
+-@@ -379,7 +381,7 @@ InitializeBootMenuData (
++@@ -379,7 +382,7 @@ InitializeBootMenuData (
+    }
+  
+    BootMenuData->TitleToken[0] = STRING_TOKEN (STR_BOOT_POPUP_MENU_TITLE_STRING);
+@@ -32,7 +33,7 @@ index ef19319614..72b399bfa0 100644
+    ASSERT (BootMenuData->PtrTokens != NULL);
+  
+    //
+-@@ -399,10 +401,19 @@ InitializeBootMenuData (
++@@ -399,10 +402,19 @@ InitializeBootMenuData (
+                                              );
+    }
+  
+@@ -53,7 +54,7 @@ index ef19319614..72b399bfa0 100644
+    InitializeBootMenuScreen (BootMenuData);
+    BootMenuData->SelectItem = 0;
+    return EFI_SUCCESS;
+-@@ -468,7 +479,7 @@ BootMenuSelectItem (
++@@ -468,7 +480,7 @@ BootMenuSelectItem (
+        BootMenuData->ScrollBarControl.LastItem  = WantSelectItem;
+      }
+  
+@@ -62,7 +63,7 @@ index ef19319614..72b399bfa0 100644
+      FirstItem   = BootMenuData->ScrollBarControl.FirstItem;
+      LastItem    = BootMenuData->ScrollBarControl.LastItem;
+      TopShadeNum = 0;
+-@@ -539,7 +550,7 @@ BootMenuSelectItem (
++@@ -539,7 +551,7 @@ BootMenuSelectItem (
+    //
+    FirstItem = BootMenuData->ScrollBarControl.FirstItem;
+    if ((WantSelectItem != BootMenuData->SelectItem) && !RePaintItems) {
+@@ -71,7 +72,7 @@ index ef19319614..72b399bfa0 100644
+      String   = HiiGetString (gStringPackHandle, BootMenuData->PtrTokens[BootMenuData->SelectItem], NULL);
+      PrintCol = StartCol  + 1;
+      PrintRow = StartRow + 3 + BootMenuData->SelectItem - FirstItem;
+-@@ -550,7 +561,7 @@ BootMenuSelectItem (
++@@ -550,7 +562,7 @@ BootMenuSelectItem (
+    //
+    // Print want to select item
+    //
+@@ -80,7 +81,7 @@ index ef19319614..72b399bfa0 100644
+    String   = HiiGetString (gStringPackHandle, BootMenuData->PtrTokens[WantSelectItem], NULL);
+    PrintCol = StartCol  + 1;
+    PrintRow = StartRow + TITLE_TOKEN_COUNT + 2 + WantSelectItem - FirstItem;
+-@@ -589,7 +600,7 @@ DrawBootPopupMenu (
++@@ -589,7 +601,7 @@ DrawBootPopupMenu (
+    gST->ConOut->ClearScreen (gST->ConOut);
+  
+    SavedAttribute = gST->ConOut->Mode->Attribute;
+@@ -89,7 +90,7 @@ index ef19319614..72b399bfa0 100644
+    Width              = BootMenuData->MenuScreen.Width;
+    StartCol           = BootMenuData->MenuScreen.StartCol;
+    StartRow           = BootMenuData->MenuScreen.StartRow;
+-@@ -754,6 +765,16 @@ BootFromSelectOption (
++@@ -754,6 +766,16 @@ BootFromSelectOption (
+        break;
+      }
+    }
+@@ -106,11 +107,249 @@ index ef19319614..72b399bfa0 100644
+  }
+  
+  /**
++@@ -986,6 +1008,48 @@ BdsSetConsoleMode (
++   @retval  EFI_NOT_FOUND        User select to enter setup or can not find boot option
++ 
++ **/
+++#define AUTO_BOOT_TIMEOUT_SECONDS  15
+++#define TIMER_TICK_100NS           1000000ULL  // 100 ms
+++#define TICKS_PER_SECOND           10
+++#define COMBO_WINDOW_TICKS         4           // 400 ms window for Vol+ & Vol- combo
+++
+++STATIC
+++VOID
+++DrawAutoBootCountdown (
+++  IN BOOT_MENU_POPUP_DATA  *BootMenuData,
+++  IN UINTN                 SecondsLeft
+++  )
+++{
+++  CHAR16  StatusLine[80];
+++  UINTN   SavedAttribute;
+++  UINTN   Row;
+++  UINTN   Col;
+++  UINTN   MaxCol;
+++  UINTN   MaxRow;
+++  UINTN   Len;
+++
+++  gST->ConOut->QueryMode (gST->ConOut, gST->ConOut->Mode->Mode, &MaxCol, &MaxRow);
+++  Row = BootMenuData->MenuScreen.StartRow + BootMenuData->MenuScreen.Height;
+++  if (Row >= MaxRow) {
+++    Row = MaxRow - 1;
+++  }
+++
+++  UnicodeSPrint (
+++    StatusLine,
+++    sizeof (StatusLine),
+++    L"  Auto-boot in %02us | Vol+/Vol-: Move | Vol+ & Vol-: Enter  ",
+++    (UINT32)SecondsLeft
+++    );
+++
+++  Len = StrLen (StatusLine);
+++  Col = (MaxCol > Len) ? ((MaxCol - Len) / 2) : 0;
+++
+++  SavedAttribute = gST->ConOut->Mode->Attribute;
+++  gST->ConOut->SetAttribute (gST->ConOut, EFI_YELLOW | EFI_BACKGROUND_BLACK);
+++  PrintStringAt (Col, Row, StatusLine);
+++  gST->ConOut->SetAttribute (gST->ConOut, SavedAttribute);
+++}
+++
++ EFI_STATUS
++ EFIAPI
++ BootManagerMenuEntry (
++@@ -1107,59 +1171,149 @@ BootManagerMenuEntry (
++   DrawBootPopupMenu (&BootMenuData);
++ 
++   //
++-  // check user input to determine want to re-draw or boot from user selected item
+++  // Check user input with 15s auto-boot timer and Vol+ & Vol- combo as Enter
++   //
++-  ExitApplication = FALSE;
++-  while (!ExitApplication) {
++-    gBS->WaitForEvent (1, &gST->ConIn->WaitForKey, &Index);
++-    Status = gST->ConIn->ReadKeyStroke (gST->ConIn, &Key);
+++  {
+++    EFI_EVENT  TimerEvent;
+++    EFI_EVENT  WaitList[2];
+++    UINTN      CountdownSeconds;
+++    UINTN      TickCounter;
+++    UINTN      TotalTicks;
+++    UINT16     LastScanCode;
+++    UINTN      LastKeyTick;
+++    UINTN      PreComboItem;
+++    BOOLEAN    ExecuteSelected;
+++
+++    TimerEvent       = NULL;
+++    CountdownSeconds = AUTO_BOOT_TIMEOUT_SECONDS;
+++    TickCounter      = 0;
+++    TotalTicks       = 0;
+++    LastScanCode     = SCAN_NULL;
+++    LastKeyTick      = 0;
+++    PreComboItem     = BootMenuData.SelectItem;
+++    ExecuteSelected  = FALSE;
+++
+++    Status = gBS->CreateEvent (EVT_TIMER, TPL_CALLBACK, NULL, NULL, &TimerEvent);
++     if (!EFI_ERROR (Status)) {
++-      switch (Key.UnicodeChar) {
++-        case CHAR_NULL:
++-          switch (Key.ScanCode) {
++-            case SCAN_UP:
++-              SelectItem = BootMenuData.SelectItem == 0 ? BootMenuData.ItemCount - 1 : BootMenuData.SelectItem - 1;
++-              BootMenuSelectItem (SelectItem, &BootMenuData);
++-              break;
+++      gBS->SetTimer (TimerEvent, TimerPeriodic, TIMER_TICK_100NS);
+++    }
+++
+++    DrawAutoBootCountdown (&BootMenuData, CountdownSeconds);
+++
+++    ExitApplication = FALSE;
+++    while (!ExitApplication) {
+++      if (TimerEvent != NULL) {
+++        WaitList[0] = gST->ConIn->WaitForKey;
+++        WaitList[1] = TimerEvent;
+++        gBS->WaitForEvent (2, WaitList, &Index);
+++      } else {
+++        gBS->WaitForEvent (1, &gST->ConIn->WaitForKey, &Index);
+++      }
+++
+++      if (Index == 1) {
+++        TotalTicks++;
+++        TickCounter++;
+++        if (TickCounter >= TICKS_PER_SECOND) {
+++          TickCounter = 0;
+++          if (CountdownSeconds > 0) {
+++            CountdownSeconds--;
+++          }
+++
+++          DrawAutoBootCountdown (&BootMenuData, CountdownSeconds);
+++          if (CountdownSeconds == 0) {
+++            ExecuteSelected = TRUE;
+++          }
+++        }
+++      } else {
+++        Status = gST->ConIn->ReadKeyStroke (gST->ConIn, &Key);
+++        if (!EFI_ERROR (Status)) {
+++          switch (Key.UnicodeChar) {
+++            case CHAR_NULL:
+++              switch (Key.ScanCode) {
+++                case SCAN_UP:
+++                case SCAN_DOWN:
+++                  if ((LastScanCode != SCAN_NULL) &&
+++                      (LastScanCode != Key.ScanCode) &&
+++                      ((TotalTicks - LastKeyTick) <= COMBO_WINDOW_TICKS))
+++                  {
+++                    // Vol+ and Vol- pressed together -> confirm selected option
+++                    BootMenuSelectItem (PreComboItem, &BootMenuData);
+++                    LastScanCode    = SCAN_NULL;
+++                    ExecuteSelected = TRUE;
+++                  } else {
+++                    PreComboItem = BootMenuData.SelectItem;
+++                    LastScanCode = Key.ScanCode;
+++                    LastKeyTick  = TotalTicks;
+++                    if (Key.ScanCode == SCAN_UP) {
+++                      SelectItem = BootMenuData.SelectItem == 0 ? BootMenuData.ItemCount - 1 : BootMenuData.SelectItem - 1;
+++                    } else {
+++                      SelectItem = BootMenuData.SelectItem == BootMenuData.ItemCount - 1 ? 0 : BootMenuData.SelectItem + 1;
+++                    }
+++
+++                    BootMenuSelectItem (SelectItem, &BootMenuData);
+++                    CountdownSeconds = AUTO_BOOT_TIMEOUT_SECONDS;
+++                    TickCounter      = 0;
+++                    DrawAutoBootCountdown (&BootMenuData, CountdownSeconds);
+++                  }
+++
+++                  break;
+++
+++                case SCAN_ESC:
+++                  gST->ConOut->ClearScreen (gST->ConOut);
+++                  ExitApplication = TRUE;
+++                  //
+++                  // Set boot resolution for normal boot
+++                  //
+++                  BdsSetConsoleMode (FALSE);
+++                  break;
+++
+++                default:
+++                  break;
+++              }
++ 
++-            case SCAN_DOWN:
++-              SelectItem = BootMenuData.SelectItem == BootMenuData.ItemCount - 1 ? 0 : BootMenuData.SelectItem + 1;
++-              BootMenuSelectItem (SelectItem, &BootMenuData);
++               break;
++ 
++-            case SCAN_ESC:
++-              gST->ConOut->ClearScreen (gST->ConOut);
++-              ExitApplication = TRUE;
++-              //
++-              // Set boot resolution for normal boot
++-              //
++-              BdsSetConsoleMode (FALSE);
+++            case CHAR_CARRIAGE_RETURN:
+++              ExecuteSelected = TRUE;
++               break;
++ 
++             default:
++               break;
++           }
+++        }
+++      }
++ 
++-          break;
++-
++-        case CHAR_CARRIAGE_RETURN:
++-          gST->ConOut->ClearScreen (gST->ConOut);
++-          //
++-          // Set boot resolution for normal boot
++-          //
++-          BdsSetConsoleMode (FALSE);
++-          BootFromSelectOption (BootOption, BootOptionCount, BootMenuData.SelectItem);
++-          //
++-          // Back to boot manager menu again, set back to setup resolution
++-          //
++-          BdsSetConsoleMode (TRUE);
++-          DrawBootPopupMenu (&BootMenuData);
++-          break;
+++      if (ExecuteSelected) {
+++        ExecuteSelected = FALSE;
+++        if (TimerEvent != NULL) {
+++          gBS->SetTimer (TimerEvent, TimerCancel, 0);
+++        }
++ 
++-        default:
++-          break;
+++        gST->ConOut->ClearScreen (gST->ConOut);
+++        //
+++        // Set boot resolution for normal boot
+++        //
+++        BdsSetConsoleMode (FALSE);
+++        BootFromSelectOption (BootOption, BootOptionCount, BootMenuData.SelectItem);
+++        //
+++        // Back to boot manager menu again, set back to setup resolution
+++        //
+++        BdsSetConsoleMode (TRUE);
+++        DrawBootPopupMenu (&BootMenuData);
+++        CountdownSeconds = AUTO_BOOT_TIMEOUT_SECONDS;
+++        TickCounter      = 0;
+++        LastScanCode     = SCAN_NULL;
+++        DrawAutoBootCountdown (&BootMenuData, CountdownSeconds);
+++        if (TimerEvent != NULL) {
+++          gBS->SetTimer (TimerEvent, TimerPeriodic, TIMER_TICK_100NS);
+++        }
++       }
++     }
+++
+++    if (TimerEvent != NULL) {
+++      gBS->SetTimer (TimerEvent, TimerCancel, 0);
+++      gBS->CloseEvent (TimerEvent);
+++    }
++   }
++ 
++   EfiBootManagerFreeLoadOptions (BootOption, BootOptionCount);
+ diff --git a/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.h b/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.h
+-index 876237df18..2aa50e256e 100644
++index 697a44aeae..8b45ad193d 100644
+ --- a/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.h
+ +++ b/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.h
+-@@ -23,7 +23,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
++@@ -22,7 +22,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
+  #include <Protocol/BootLogo.h>
+  
+  #define TITLE_TOKEN_COUNT  1
+diff --git a/Silicon/Qualcomm/QcomPkg/Extra.fdf.inc b/Silicon/Qualcomm/QcomPkg/Extra.fdf.inc
+index 1170e254..ebf2d0b4 100644
+--- a/Silicon/Qualcomm/QcomPkg/Extra.fdf.inc
++++ b/Silicon/Qualcomm/QcomPkg/Extra.fdf.inc
+@@ -1,3 +1,5 @@
+   INF QcomPkg/Applications/MassStorage/MassStorage.inf
++  INF QcomPkg/Applications/ChargerMode/ChargerMode.inf
++  INF QcomPkg/Applications/RebootRecovery/RebootRecovery.inf
+ 
+ !include SiliciumPkg/Extra.fdf.inc
+diff --git a/Silicon/Qualcomm/QcomPkg/Library/PlatformBootManagerLib/PlatformBootManager.c b/Silicon/Qualcomm/QcomPkg/Library/PlatformBootManagerLib/PlatformBootManager.c
+index 1fb1b20e..22422ea0 100644
+--- a/Silicon/Qualcomm/QcomPkg/Library/PlatformBootManagerLib/PlatformBootManager.c
++++ b/Silicon/Qualcomm/QcomPkg/Library/PlatformBootManagerLib/PlatformBootManager.c
+@@ -1,140 +1,1445 @@
+-#include <Library/DebugLib.h>
+-#include <Library/UefiBootServicesTableLib.h>
+-#include <Library/DeviceBootManagerLib.h>
+-#include <Library/RfsProtectionLib.h>
+-#include <Protocol/EFIScm.h>
+-
+-STATIC
+-VOID
+-DummyNotify (
+-  IN EFI_EVENT Event,
+-  IN VOID     *Context) 
+-{
+-  return;
+-}
+-
+-EFI_HANDLE
+-EFIAPI
+-DeviceBootManagerBeforeConsole (
+-  OUT EFI_DEVICE_PATH_PROTOCOL  **DevicePath,
+-  OUT BDS_CONSOLE_CONNECT_ENTRY **PlatformConsoles)
+-{
+-  return NULL;
+-}
+-
+-EFI_DEVICE_PATH_PROTOCOL**
+-EFIAPI
+-DeviceBootManagerAfterConsole ()
+-{
+-  EFI_STATUS Status;
+-  EFI_EVENT  InitEvent;
+-
+-  // Create SD Card Init Event
+-  Status = gBS->CreateEventEx (EVT_NOTIFY_SIGNAL, TPL_CALLBACK, DummyNotify, NULL, &gSdCardInitGuid, &InitEvent);
+-  if (EFI_ERROR (Status)) {
+-    DEBUG ((EFI_D_ERROR, "%a: Failed to Create SD Card Init Event! Status = %r\n", __FUNCTION__, Status));
+-    return NULL;
+-  }
+-
+-  // Init SD Card
+-  gBS->SignalEvent (InitEvent);
+-  gBS->CloseEvent  (InitEvent);
+-
+-  return NULL;
+-}
+-
+-EFI_DEVICE_PATH_PROTOCOL**
+-EFIAPI
+-DeviceBootManagerOnDemandConInConnect ()
+-{
+-  EFI_STATUS Status;
+-  EFI_EVENT  InitEvent;
+-
+-  // Create USB Controller Start Event
+-  Status = gBS->CreateEventEx (EVT_NOTIFY_SIGNAL, TPL_CALLBACK, DummyNotify, NULL, &gUsbControllerInitGuid, &InitEvent);
+-  if (EFI_ERROR (Status)) {
+-    DEBUG ((EFI_D_ERROR, "%a: Failed to Create USB Port Controller Start Event! Status = %r\n", __FUNCTION__, Status));
+-    return NULL;
+-  }
+-
+-  // Start USB Controller
+-  gBS->SignalEvent (InitEvent);
+-  gBS->CloseEvent  (InitEvent);
+-
+-  return NULL;
+-}
+-
+-VOID
+-EFIAPI
+-DeviceBootManagerProcessBootCompletion (OUT EFI_BOOT_MANAGER_LOAD_OPTION *BootOption)
+-{
+-  return;
+-}
+-
+-EFI_STATUS
+-EFIAPI
+-DeviceBootManagerPriorityBoot (IN OUT EFI_BOOT_MANAGER_LOAD_OPTION *BootOption)
+-{
+-  return EFI_SUCCESS;
+-}
+-
+-VOID
+-EFIAPI
+-DeviceBootManagerUnableToBoot ()
+-{
+-  return;
+-}
+-
+-STATIC
+-VOID
+-ExitBootServicesCallback (
+-  IN EFI_EVENT Event,
+-  IN VOID     *Context)
+-{
+-  EFI_STATUS Status;
+-  QCOM_SCM_PROTOCOL *ScmProtocol;
+-
+-  // Locate SCM Protocol
+-  Status = gBS->LocateProtocol (&gQcomScmProtocolGuid, NULL, (VOID *)&ScmProtocol);
+-  if (EFI_ERROR (Status)) {
+-    DEBUG ((EFI_D_ERROR, "%a: Failed to Locate SCM Protocol! Status = %r\n", __FUNCTION__, Status));
+-    return;
+-  }
+-
+-  // Call Exit Boot Services Callback
+-  Status = ScmProtocol->ScmExitBootServicesHandler(ScmProtocol);
+-  if (EFI_ERROR (Status)) {
+-    DEBUG ((EFI_D_ERROR, "%a: Failed to Call Exit Boot Services Callback! Status = %r\n", __FUNCTION__, Status));
+-    return;
+-  }
+-
+-  return;
+-}
+-
+-STATIC
+-VOID
+-EFIAPI
+-RegisterEBSCallback ()
+-{
+-  EFI_STATUS Status;
+-  EFI_EVENT  EBSEvent;
+-
+-  // Create Exit Boot Services Event
+-  Status = gBS->CreateEventEx (EVT_NOTIFY_SIGNAL, TPL_CALLBACK, ExitBootServicesCallback, NULL, &gEfiEventExitBootServicesGuid, &EBSEvent);
+-  if (EFI_ERROR (Status)) {
+-    DEBUG ((EFI_D_ERROR, "%a: Failed to Create ExitBootServices Event! Status = %r\n", __FUNCTION__, Status));
+-  }
+-
+-  return;
+-}
+-
+-VOID
+-EFIAPI
+-DeviceBootManagerBdsEntry ()
+-{
+-  // Protect Shared RFS Area
+-  ProtectRfsSharedArea ();
+-
+-  // Register EBS Callback
+-  RegisterEBSCallback ();
+-}
++#include <Library/BaseLib.h>
++#include <Library/BaseMemoryLib.h>
++#include <Library/DebugLib.h>
++#include <Library/IoLib.h>
++#include <Library/MemoryAllocationLib.h>
++#include <Library/PrintLib.h>
++#include <Library/UefiBootServicesTableLib.h>
++#include <Library/UefiRuntimeServicesTableLib.h>
++#include <Library/DeviceBootManagerLib.h>
++#include <Library/RfsProtectionLib.h>
++#include <Protocol/EFIClock.h>
++#include <Protocol/EFII2C.h>
++#include <Protocol/EFIPmicPon.h>
++#include <Protocol/EFIResetReason.h>
++#include <Protocol/EFIScm.h>
++#include <Protocol/SimpleFileSystem.h>
++#include "S22Pcie0PhyTbl.h"
++
++//
++// Galaxy S22 (r0q / SM8450) STM FTS2BA61Y Touchscreen RPMh LDO bring-up:
++//   vdd  = PM8350C LDO8  ("ldoc8")  = 1800 mV, HPM (mode 7), ON
++//   avdd = PM8350C LDO11 ("ldoc11") = 3000 mV, HPM (mode 7), ON
++// Protocol GUIDs & layouts verified from r0q CmdDbDxe.efi + RpmhDxe.efi.
++//
++STATIC EFI_GUID gS22CmdDbProtocolGuid = {
++  0x1C34F691, 0xD33D, 0x4E14, { 0xB8, 0xF8, 0x32, 0xC6, 0xC0, 0x29, 0xE9, 0x5B }
++};
++
++STATIC EFI_GUID gS22RpmhProtocolGuid = {
++  0xE1D0B573, 0xF29F, 0x495D, { 0x93, 0x52, 0xCA, 0x0D, 0xD4, 0x2A, 0x0A, 0x74 }
++};
++
++STATIC EFI_GUID gS22UsbConfigProtocolGuid = {
++  0xE722B03F, 0xB250, 0x42CE, { 0x8E, 0xBD, 0x5B, 0xD5, 0x18, 0x12, 0xD0, 0x37 }
++};
++
++// Verified from r0q SPMIDxe.efi (0x8058 GUID, 0x8098 vtable rev 0x10003)
++STATIC EFI_GUID gS22SpmiProtocolGuid = {
++  0xFA5F306B, 0xF47D, 0x4AC4, { 0xA4, 0x7D, 0x88, 0x2F, 0x82, 0x04, 0xEC, 0x30 }
++};
++
++typedef struct _S22_SPMI_PROTOCOL S22_SPMI_PROTOCOL;
++
++typedef UINT32 (EFIAPI *S22_SPMI_READ_LONG)(
++  IN  S22_SPMI_PROTOCOL  *This,
++  IN  UINT32             BusId,
++  IN  UINT32             SlaveId,
++  IN  UINT32             Priority,
++  IN  UINT32             RegAddr,
++  OUT UINT8              *Data,
++  IN  UINT32             Len,
++  OUT UINT32             *TotalBytesRead
++  );
++
++typedef UINT32 (EFIAPI *S22_SPMI_WRITE_LONG)(
++  IN S22_SPMI_PROTOCOL  *This,
++  IN UINT32             BusId,
++  IN UINT32             SlaveId,
++  IN UINT32             Priority,
++  IN UINT32             RegAddr,
++  IN UINT8              *Data,
++  IN UINT32             Len
++  );
++
++struct _S22_SPMI_PROTOCOL {
++  UINT64               Revision;   // +0x00 (0x00010003)
++  S22_SPMI_READ_LONG   ReadLong;   // +0x08
++  S22_SPMI_WRITE_LONG  WriteLong;  // +0x10
++};
++
++typedef struct _S22_USB_CONFIG_PROTOCOL S22_USB_CONFIG_PROTOCOL;
++
++typedef EFI_STATUS (EFIAPI *S22_USB_START_CONTROLLER)(
++  IN S22_USB_CONFIG_PROTOCOL  *This,
++  IN UINT32                   CoreNum,
++  IN UINT32                   ModeType
++  );
++
++typedef EFI_STATUS (EFIAPI *S22_USB_STOP_CONTROLLER)(
++  IN S22_USB_CONFIG_PROTOCOL  *This,
++  IN UINT32                   CoreNum,
++  IN UINT32                   ModeType
++  );
++
++typedef EFI_STATUS (EFIAPI *S22_USB_TOGGLE_MODE)(
++  IN S22_USB_CONFIG_PROTOCOL  *This,
++  IN UINT32                   CoreNum
++  );
++
++struct _S22_USB_CONFIG_PROTOCOL {
++  UINT64                    Revision;          // +0x00
++  VOID                      *Slot08;           // +0x08
++  VOID                      *Slot10;           // +0x10
++  VOID                      *Slot18;           // +0x18
++  VOID                      *Slot20;           // +0x20
++  VOID                      *Slot28;           // +0x28
++  VOID                      *Slot30;           // +0x30
++  VOID                      *Slot38;           // +0x38
++  VOID                      *Slot40;           // +0x40
++  VOID                      *Slot48;           // +0x48
++  S22_USB_START_CONTROLLER  StartController;   // +0x50
++  S22_USB_STOP_CONTROLLER   StopController;    // +0x58
++  VOID                      *Slot60;           // +0x60
++  VOID                      *Slot68;           // +0x68
++  S22_USB_TOGGLE_MODE       ToggleMode;        // +0x70
++};
++
++typedef struct _S22_CMD_DB_PROTOCOL S22_CMD_DB_PROTOCOL;
++
++typedef EFI_STATUS (EFIAPI *S22_CMD_DB_QUERY_ADDR)(
++  IN  S22_CMD_DB_PROTOCOL *This,
++  IN  CONST CHAR8         *ResId,
++  OUT UINT32              *Addr
++  );
++
++struct _S22_CMD_DB_PROTOCOL {
++  UINT64                Revision;
++  VOID                  *Query;
++  S22_CMD_DB_QUERY_ADDR QueryAddr;
++};
++
++#pragma pack(push, 1)
++typedef struct {
++  UINT32 Address;
++  UINT32 Data;
++  UINT32 Completion;
++} S22_RPMH_COMMAND;
++
++typedef struct {
++  UINT32           Set;          // 0 = RPMH_SET_ACTIVE
++  UINT32           NumCommands;  // 1..16
++  UINT32           Reserved;     // 0
++  S22_RPMH_COMMAND Commands[16];
++} S22_RPMH_COMMAND_SET;
++#pragma pack(pop)
++
++typedef EFI_STATUS (EFIAPI *S22_RPMH_IS_DRV_ID_VALID)(
++  IN  UINT32   DrvId,
++  OUT BOOLEAN  *Valid
++  );
++
++typedef EFI_STATUS (EFIAPI *S22_RPMH_CREATE_HANDLE)(
++  IN  UINT32       DrvId,
++  IN  CONST CHAR8  *ClientName,
++  OUT VOID         **ClientHandle
++  );
++
++typedef EFI_STATUS (EFIAPI *S22_RPMH_CHURN_ALL)(
++  IN  VOID    *ClientHandle,
++  IN  UINT32  ReqId
++  );
++
++typedef EFI_STATUS (EFIAPI *S22_RPMH_ISSUE_COMMAND_SET)(
++  IN  VOID                  *ClientHandle,
++  IN  S22_RPMH_COMMAND_SET  *CmdSet,
++  OUT UINT32                *ReqId
++  );
++
++typedef struct {
++  UINT64                      Revision;          // +0x00
++  VOID                        *Slot08;           // +0x08
++  S22_RPMH_IS_DRV_ID_VALID    IsDrvIdValid;      // +0x10
++  VOID                        *Slot18;           // +0x18
++  VOID                        *Slot20;           // +0x20
++  S22_RPMH_CREATE_HANDLE      CreateHandle;      // +0x28
++  VOID                        *Slot30;           // +0x30
++  VOID                        *Slot38;           // +0x38
++  VOID                        *Slot40;           // +0x40
++  VOID                        *Slot48;           // +0x48
++  VOID                        *Slot50;           // +0x50
++  S22_RPMH_CHURN_ALL          ChurnAll;          // +0x58
++  VOID                        *Slot60;           // +0x60
++  VOID                        *Slot68;           // +0x68
++  VOID                        *Slot70;           // +0x70
++  S22_RPMH_ISSUE_COMMAND_SET  IssueCommandSet;   // +0x78
++} S22_RPMH_PROTOCOL;
++
++STATIC
++EFI_STATUS
++S22EnableVrmLdo (
++  IN S22_CMD_DB_PROTOCOL  *CmdDb,
++  IN S22_RPMH_PROTOCOL    *Rpmh,
++  IN VOID                 *Handle,
++  IN CONST CHAR8          *PrimaryName,
++  IN CONST CHAR8          *FallbackName,
++  IN UINT32               VoltageMv
++  )
++{
++  EFI_STATUS            Status;
++  UINT32                BaseAddr = 0;
++  UINT32                ReqId    = 0;
++  S22_RPMH_COMMAND_SET  CmdSet;
++
++  Status = CmdDb->QueryAddr (CmdDb, PrimaryName, &BaseAddr);
++  if ((EFI_ERROR (Status) || BaseAddr == 0) && FallbackName != NULL) {
++    BaseAddr = 0;
++    Status = CmdDb->QueryAddr (CmdDb, FallbackName, &BaseAddr);
++  }
++
++  if (EFI_ERROR (Status) || BaseAddr == 0) {
++    DEBUG ((EFI_D_ERROR, "S22TouchRails: cmd-db lookup failed for %a (%r, addr=0x%x)\n", PrimaryName, Status, BaseAddr));
++    return EFI_NOT_FOUND;
++  }
++
++  // VRM offsets: +0x0 = VOLTAGE (mV), +0x4 = ENABLE (0/1), +0x8 = MODE (7 = PMIC5 HPM)
++  CmdSet.Set         = 0; // RPMH_SET_ACTIVE
++  CmdSet.NumCommands = 3;
++  CmdSet.Reserved    = 0;
++
++  CmdSet.Commands[0].Address    = BaseAddr + 0x0;
++  CmdSet.Commands[0].Data       = VoltageMv;
++  CmdSet.Commands[0].Completion = 1;
++
++  CmdSet.Commands[1].Address    = BaseAddr + 0x8;
++  CmdSet.Commands[1].Data       = 7; // PMIC5 LDO HPM
++  CmdSet.Commands[1].Completion = 1;
++
++  CmdSet.Commands[2].Address    = BaseAddr + 0x4;
++  CmdSet.Commands[2].Data       = 1; // ENABLE
++  CmdSet.Commands[2].Completion = 1;
++
++  Status = Rpmh->IssueCommandSet (Handle, &CmdSet, &ReqId);
++  if (EFI_ERROR (Status)) {
++    DEBUG ((EFI_D_ERROR, "S22TouchRails: IssueCommandSet(%a, 0x%x) failed (%r)\n", PrimaryName, BaseAddr, Status));
++    return Status;
++  }
++
++  if (ReqId != 0) {
++    Status = Rpmh->ChurnAll (Handle, ReqId);
++    if (EFI_ERROR (Status)) {
++      DEBUG ((EFI_D_ERROR, "S22TouchRails: ChurnAll(%a, req=%u) failed (%r)\n", PrimaryName, ReqId, Status));
++      return Status;
++    }
++  }
++
++  DEBUG ((EFI_D_WARN, "S22TouchRails: %a (0x%x) -> %u mV ON (Status=%r, ReqId=%u)\n",
++          PrimaryName, BaseAddr, VoltageMv, Status, ReqId));
++  return EFI_SUCCESS;
++}
++
++STATIC UINT32 mS22PcieRailsMask = 0;
++
++STATIC
++VOID
++S22EnableTouchRails (
++  VOID
++  )
++{
++  EFI_STATUS           Status;
++  S22_CMD_DB_PROTOCOL  *CmdDb  = NULL;
++  S22_RPMH_PROTOCOL    *Rpmh   = NULL;
++  VOID                 *Handle = NULL;
++  CONST UINT32         DrvId   = 2; // Verified from r0q RpmhDxe.efi DRV table (count=1, drv_id=0x2 = RSC_DRV_HLOS)
++  BOOLEAN              Valid   = FALSE;
++
++  Status = gBS->LocateProtocol (&gS22CmdDbProtocolGuid, NULL, (VOID **)&CmdDb);
++  if (EFI_ERROR (Status) || CmdDb == NULL) {
++    DEBUG ((EFI_D_ERROR, "S22TouchRails: CmdDb protocol not found (%r)\n", Status));
++    return;
++  }
++
++  Status = gBS->LocateProtocol (&gS22RpmhProtocolGuid, NULL, (VOID **)&Rpmh);
++  if (EFI_ERROR (Status) || Rpmh == NULL) {
++    DEBUG ((EFI_D_ERROR, "S22TouchRails: Rpmh protocol not found (%r)\n", Status));
++    return;
++  }
++
++  Status = Rpmh->IsDrvIdValid (DrvId, &Valid);
++  if (EFI_ERROR (Status) || !Valid) {
++    DEBUG ((EFI_D_ERROR, "S22TouchRails: RPMh DRV_ID %u invalid (%r, valid=%u)\n", DrvId, Status, Valid));
++    return;
++  }
++
++  Status = Rpmh->CreateHandle (DrvId, "s22_tsp", &Handle);
++  if (EFI_ERROR (Status) || Handle == NULL) {
++    DEBUG ((EFI_D_ERROR, "S22TouchRails: CreateHandle(drv=%u) failed (%r)\n", DrvId, Status));
++    return;
++  }
++
++  // Enable VDD (1.8 V) then AVDD (3.0 V) per Samsung r0q fts2ba61y sequence
++  Status = S22EnableVrmLdo (CmdDb, Rpmh, Handle, "ldoc8",  "l8c",  1800);
++  if (EFI_ERROR (Status)) {
++    DEBUG ((EFI_D_ERROR, "S22TouchRails: VDD ldoc8 enable failed (%r), skipping AVDD\n", Status));
++    return;
++  }
++
++  gBS->Stall (5000);
++  Status = S22EnableVrmLdo (CmdDb, Rpmh, Handle, "ldoc11", "l11c", 3000);
++  if (EFI_ERROR (Status)) {
++    DEBUG ((EFI_D_ERROR, "S22TouchRails: AVDD ldoc11 enable failed (%r)\n", Status));
++    return;
++  }
++
++  // Also ensure SM8450 USB2 HS PHY & QMP USB3 SS PHY + PCIe0 PHY + WCN6855 rails stay powered on (from sm8450-samsung-r0q.dts + wifirails.c)
++  mS22PcieRailsMask = 0;
++  if (!EFI_ERROR (S22EnableVrmLdo (CmdDb, Rpmh, Handle, "ldob5", "l5b", 888)))  mS22PcieRailsMask |= (1U << 0);
++  (VOID)S22EnableVrmLdo (CmdDb, Rpmh, Handle, "ldoc1", "l1c", 1800);
++  (VOID)S22EnableVrmLdo (CmdDb, Rpmh, Handle, "ldob2", "l2b", 3072);
++  (VOID)S22EnableVrmLdo (CmdDb, Rpmh, Handle, "ldob1", "l1b", 912);
++  if (!EFI_ERROR (S22EnableVrmLdo (CmdDb, Rpmh, Handle, "ldob6",  "l6b",  1200))) mS22PcieRailsMask |= (1U << 1);
++  if (!EFI_ERROR (S22EnableVrmLdo (CmdDb, Rpmh, Handle, "smpb10", "s10b", 1800))) mS22PcieRailsMask |= (1U << 2);
++  if (!EFI_ERROR (S22EnableVrmLdo (CmdDb, Rpmh, Handle, "smpb11", "s11b",  980))) mS22PcieRailsMask |= (1U << 3);
++  if (!EFI_ERROR (S22EnableVrmLdo (CmdDb, Rpmh, Handle, "smpb12", "s12b", 1352))) mS22PcieRailsMask |= (1U << 4);
++  if (!EFI_ERROR (S22EnableVrmLdo (CmdDb, Rpmh, Handle, "smpe2",  "s2e",  1012))) mS22PcieRailsMask |= (1U << 5);
++  if (!EFI_ERROR (S22EnableVrmLdo (CmdDb, Rpmh, Handle, "smpc1",  "s1c",  1904))) mS22PcieRailsMask |= (1U << 6);
++  (VOID)S22EnableVrmLdo (CmdDb, Rpmh, Handle, "ldoe7",  "l7e",  2800); // WLAN/BT antenna switch (stock pmr735a_l7)
++
++  gBS->Stall (15000);
++}
++
++STATIC
++VOID
++DummyNotify (
++  IN EFI_EVENT Event,
++  IN VOID     *Context) 
++{
++  return;
++}
++
++STATIC
++VOID
++S22ForceDwc3HostRegs (
++  VOID
++  )
++{
++  UINT32 SnpsId = MmioRead32 (0x0A60C120ULL);
++  if ((SnpsId & 0xFFFF0000U) == 0x55330000U) {
++    UINT32 Gctl   = MmioRead32 (0x0A60C110ULL);
++    UINT32 HsCtrl = MmioRead32 (0x0A6F8810ULL);
++    UINT32 SsCtrl = MmioRead32 (0x0A6F8830ULL);
++
++    Gctl = (Gctl & ~(3U << 12)) | (1U << 12); // DWC3_GCTL_PRTCAP_HOST
++    MmioWrite32 (0x0A60C110ULL, Gctl);
++
++    // Clear QSCRATCH peripheral VBUS override bits (UTMI_OTG_VBUS_VALID bit 20 | SW_SESSVLD_SEL bit 28)
++    HsCtrl &= ~((1U << 20) | (1U << 28));
++    MmioWrite32 (0x0A6F8810ULL, HsCtrl);
++
++    // Clear QSCRATCH SS_PHY_CTRL LANE0_PWR_PRESENT (bit 24)
++    SsCtrl &= ~(1U << 24);
++    MmioWrite32 (0x0A6F8830ULL, SsCtrl);
++  }
++}
++
++STATIC UINT32     mS22Max77705I2cInst  = 0;
++STATIC EFI_EVENT  mS22UsbOtgTimerEvent = NULL;
++
++STATIC
++VOID
++S22ConfigureMax77705OtgAndMuic (
++  VOID
++  )
++{
++  EFI_STATUS             Status;
++  EFI_QCOM_I2C_PROTOCOL  *I2c = NULL;
++  UINT32                 Inst, StartInst, EndInst;
++  i2c_slave_config       Cfg;
++  UINT8                  Buf2[2];
++  UINT8                  IntOk    = 0;
++  UINT8                  Cnfg00   = 0;
++  UINT8                  Cnfg02   = 0;
++  UINT8                  Cc0      = 0;
++  UINT8                  OpCmd[2] = { 0x06, 0x09 }; // MAX77705_OP_CTRL1_W (0x06) = COM_USB_AP (0x09)
++  UINT8                  OpEnd    = 0x00;
++  UINT32                 Xfer     = 0;
++
++  Status = gBS->LocateProtocol (&gQcomI2CProtocolGuid, NULL, (VOID **)&I2c);
++  if (EFI_ERROR (Status) || I2c == NULL || I2c->open == NULL || I2c->read == NULL || I2c->write == NULL) {
++    return;
++  }
++
++  ZeroMem (&Cfg, sizeof (Cfg));
++  Cfg.bus_frequency_khz          = 400;
++  Cfg.mode                       = I2C;
++  Cfg.slave_max_clock_stretch_us = 500;
++
++  StartInst = (mS22Max77705I2cInst != 0) ? mS22Max77705I2cInst : (UINT32)I2C_INSTANCE_001;
++  EndInst   = (mS22Max77705I2cInst != 0) ? mS22Max77705I2cInst : (UINT32)I2C_INSTANCE_024;
++
++  for (Inst = StartInst; Inst <= EndInst; Inst++) {
++    VOID *Handle = NULL;
++    if (I2c->open ((i2c_instance)Inst, &Handle) != I2C_SUCCESS || Handle == NULL) {
++      continue;
++    }
++
++    if (mS22Max77705I2cInst == 0) {
++      Cfg.slave_address = 0x36; // Fuel gauge probe
++      ZeroMem (Buf2, sizeof (Buf2));
++      if (I2c->read (Handle, &Cfg, 0x09, 1, Buf2, 2, &Xfer, 500) == I2C_SUCCESS) {
++        UINT16 Raw16 = (UINT16)(Buf2[0] | ((UINT16)Buf2[1] << 8));
++        UINT32 Mv    = (UINT32)(((UINT64)(Raw16 >> 3) * 625ULL) / 1000ULL);
++        if (Mv >= 2000 && Mv <= 4800) {
++          mS22Max77705I2cInst = Inst;
++        }
++      }
++    }
++
++    if (mS22Max77705I2cInst == Inst) {
++      // 1. Route MAX77705 USBC/MUIC (0x25) D+/D- analog switch to AP_USB (Opcode 0x06, Val 0x09)
++      Cfg.slave_address = 0x25;
++      I2c->write (Handle, &Cfg, 0x21, 1, OpCmd, 2, &Xfer, 500);
++      I2c->write (Handle, &Cfg, 0x41, 1, &OpEnd, 1, &Xfer, 500);
++
++      // 2. Check CC_STATUS0 (0x0A) for CC1/CC2 orientation on QMP Combo PHY (0x088E8010)
++      if (I2c->read (Handle, &Cfg, 0x0A, 1, &Cc0, 1, &Xfer, 500) == I2C_SUCCESS) {
++        UINT8 CcPin = (Cc0 >> 6) & 0x03U;
++        if (CcPin == 1 || CcPin == 2) {
++          UINT32 TypecCtrl = (CcPin == 2) ? 0x03U : 0x02U; // SW_PORTSELECT_MUX | (CC2 ? SW_PORTSELECT_VAL : 0)
++          MmioWrite32 (0x088E8010ULL, TypecCtrl);
++        }
++      }
++
++      // 3. Enable OTG 5V/1500mA boost on Charger (0x69) if no external charger VBUS
++      Cfg.slave_address = 0x69;
++      if (I2c->read (Handle, &Cfg, 0xB2, 1, &IntOk, 1, &Xfer, 500) == I2C_SUCCESS &&
++          (IntOk & (1U << 6)) == 0)
++      {
++        UINT8 Cnfg06 = 0x0D;
++        // Unlock charger registers (CHG_CNFG_06 0xBD: CHGPROT=11 [0x0C], WDTCLR=01, DIS_AICL=0)
++        if (I2c->read (Handle, &Cfg, 0xBD, 1, &Cnfg06, 1, &Xfer, 500) == I2C_SUCCESS) {
++          Cnfg06 = (UINT8)((Cnfg06 & ~0x1FU) | 0x0DU);
++        }
++        I2c->write (Handle, &Cfg, 0xBD, 1, &Cnfg06, 1, &Xfer, 500);
++
++        // Set OTG boost current limit to 1500 mA (CHG_CNFG_02 0xB9 bits[7:6] = 11 -> 0xC0)
++        if (I2c->read (Handle, &Cfg, 0xB9, 1, &Cnfg02, 1, &Xfer, 500) == I2C_SUCCESS) {
++          Cnfg02 = (UINT8)((Cnfg02 & ~0xC0U) | 0xC0U); // MAX77705_OTG_ILIM_1500
++          I2c->write (Handle, &Cfg, 0xB9, 1, &Cnfg02, 1, &Xfer, 500);
++        }
++
++        // Keep BUCK (bit 2) ON + OTG (bit 1) + BOOST (bit 3) = 0x0E/0x0F, AND clear WDTEN (bit 4)
++        // so the 80s charger watchdog NEVER kills 5V OTG VBUS in Windows!
++        if (I2c->read (Handle, &Cfg, 0xB7, 1, &Cnfg00, 1, &Xfer, 500) == I2C_SUCCESS) {
++          UINT8 Desired = (UINT8)(((Cnfg00 & 0x05U) | 0x0EU) & ~0x10U);
++          if (Cnfg00 != Desired) {
++            I2c->write (Handle, &Cfg, 0xB7, 1, &Desired, 1, &Xfer, 500);
++          }
++        }
++      }
++
++      if (I2c->close != NULL) I2c->close (Handle);
++      break;
++    }
++
++    if (I2c->close != NULL) I2c->close (Handle);
++  }
++}
++
++#pragma pack(1)
++typedef struct {
++  CHAR16  ReasonStr[12];
++  UINT8   ReasonData;
++} S22_RESET_PARAM_DATA;
++#pragma pack()
++
++//
++// Galaxy S22 (r0q / SM8450) Stage 1 WCN6855 + PCIe0 Root Complex Bring-Up
++//
++#define S22_TLMM_BASE            0x0F100000ULL
++#define S22_AOSS_QMP_BASE        0x0C300000ULL
++#define S22_IPCC_SEND_ID         0x0ED1800CULL
++#define S22_GCC_PCIE0_BCR        0x0017B000ULL
++#define S22_GCC_PCIE0_PIPE_SRC   0x0017B060ULL
++#define S22_GCC_PCIE0_PHY_BCR    0x0017C01CULL
++#define S22_PCIE0_PARF_BASE      0x01C00000ULL
++#define S22_PCIE0_PHY_BASE       0x01C06000ULL
++#define S22_PCIE0_DBI_BASE       0x60000000ULL
++#define S22_PCIE0_ATU_BASE       0x60001000ULL
++#define S22_PCIE0_CFG1_BASE      0x60100000ULL
++#define S22_PCIE0_MEM_BASE       0x60400000ULL
++#define S22_PCIE0_MEM_LIMIT      0x63FFFFFFULL
++
++STATIC UINT32 mS22PcieQmpOk      = 0;
++STATIC UINT32 mS22PcieQmpStep    = 0;
++STATIC UINT32 mS22PciePdMask     = 0;
++STATIC UINT32 mS22PcieClkMask    = 0;
++STATIC UINT32 mS22PciePhyStatus  = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieDbg0       = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieDbg1       = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieSeen       = 0;
++STATIC UINT32 mS22PciePipeSrc    = 0xFFFFFFFFU;
++STATIC UINT32 mS22PciePipeCbcr   = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieClkRef     = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieCmnSta     = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieCrdy       = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieSysCtrl    = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieRpId       = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieDev1Id     = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieEpId       = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieEp1Id      = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieLnkSta     = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieEpBar0     = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieGpioMask   = 0;
++STATIC UINT32 mS22PcieGdsc       = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieVote2      = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieAuxCbcr    = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieCfgCbcr    = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieMstrCbcr   = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieSlvCbcr    = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieRchngCbcr  = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieLdbcr      = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieParfLtssm  = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieParfPm     = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieParfPctrl  = 0xFFFFFFFFU;
++STATIC UINT32 mS22PciePlc        = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieLwsc       = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieAuxRcg     = 0xFFFFFFFFU;
++STATIC UINT32 mS22PciePcsSta2    = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieCtl204     = 0xFFFFFFFFU;
++STATIC UINT32 mS22PcieIo204Hi    = 0xFFFFFFFFU;
++STATIC UINT32 mS22GicdCtlr       = 0xFFFFFFFFU;
++STATIC UINT32 mS22GicdTyper      = 0xFFFFFFFFU;
++STATIC UINT32 mS22SmmuCr0        = 0xFFFFFFFFU;
++STATIC UINT32 mS22SmmuIdr0       = 0xFFFFFFFFU;
++STATIC UINT32 mS22SmmuGfsr       = 0xFFFFFFFFU;
++STATIC UINT32 mS22SmmuS2cr       = 0xFFFFFFFFU;
++STATIC UINT32 mS22SmmuSmr        = 0xFFFFFFFFU;
++STATIC BOOLEAN  mS22PcieLogWritten = FALSE;
++
++STATIC
++VOID
++S22TlmmSetOutput (
++  IN UINT32   Gpio,
++  IN BOOLEAN  High
++  )
++{
++  UINT64 CtlAddr   = S22_TLMM_BASE + ((UINT64)Gpio * 0x1000ULL);
++  UINT32 Ctl       = MmioRead32 (CtlAddr);
++  // CRITICAL (pinctrl-msm.c / pinctrl-sm8450.c): GPIO 204 (XO_CLK) has egpio_present (BIT11)=1.
++  // APSS TLMM MUST set egpio_enable (BIT12)=1 to claim pin ownership from EGPIO/AOP!
++  UINT32 EgpioBits = (Ctl & (1U << 11)) ? ((1U << 11) | (1U << 12)) : 0U;
++
++  // Set output value BEFORE enabling OE
++  // Drive strength 16 mA (7 << 6) matching sm8450-samsung-r0q.dts wlan_en / xo_clk_default
++  MmioWrite32 (CtlAddr + 4ULL, High ? 2U : 0U);
++  Ctl = EgpioBits | (1U << 9) | (7U << 6); // OE=1, 16mA drive, func=0, no-pull
++  MmioWrite32 (CtlAddr, Ctl);
++}
++
++STATIC
++VOID
++S22TlmmSetFunc (
++  IN UINT32  Gpio,
++  IN UINT32  Func,
++  IN UINT32  Pull
++  )
++{
++  UINT64 CtlAddr   = S22_TLMM_BASE + ((UINT64)Gpio * 0x1000ULL);
++  UINT32 Ctl       = MmioRead32 (CtlAddr);
++  UINT32 EgpioBits = (Ctl & (1U << 11)) ? ((1U << 11) | (1U << 12)) : 0U;
++
++  Ctl = EgpioBits | ((Func & 0xFU) << 2) | (Pull & 0x3U);
++  MmioWrite32 (CtlAddr, Ctl);
++}
++
++#if 0
++STATIC
++EFI_STATUS
++S22AossQmpSend (
++  IN CONST CHAR8  *Msg
++  )
++{
++  UINT32 Magic;
++  UINT32 Ver;
++  UINT32 Offset;
++  UINT32 Size;
++  UINT32 Poll;
++  UINT32 Words[16];
++  UINTN  Len;
++  UINTN  i;
++
++  Magic = MmioRead32 (S22_AOSS_QMP_BASE + 0x00ULL);
++  Ver   = MmioRead32 (S22_AOSS_QMP_BASE + 0x04ULL);
++  if (Magic != 0x4D41494CU || Ver != 1U) {
++    mS22PcieQmpStep = 1;
++    return EFI_NOT_READY;
++  }
++
++  Offset = MmioRead32 (S22_AOSS_QMP_BASE + 0x38ULL);
++  Size   = MmioRead32 (S22_AOSS_QMP_BASE + 0x34ULL);
++  if (Size < 64U || Offset == 0 || (Offset + 68U) > 0x400U) {
++    mS22PcieQmpStep = 2;
++    return EFI_BAD_BUFFER_SIZE;
++  }
++
++  // Open QMP link/channel if not already open
++  if (MmioRead32 (S22_AOSS_QMP_BASE + 0x30ULL) != 0x0000FFFFU) {
++    UINT32 UcoreLink = MmioRead32 (S22_AOSS_QMP_BASE + 0x0CULL);
++    MmioWrite32 (S22_AOSS_QMP_BASE + 0x10ULL, UcoreLink);
++    MmioWrite32 (S22_AOSS_QMP_BASE + 0x24ULL, 0x0000FFFFU);
++    MmioWrite32 (S22_IPCC_SEND_ID, 0U);
++
++    for (Poll = 0; Poll < 500; Poll++) {
++      if (MmioRead32 (S22_AOSS_QMP_BASE + 0x28ULL) == 0x0000FFFFU) break;
++      gBS->Stall (1000);
++    }
++    if (MmioRead32 (S22_AOSS_QMP_BASE + 0x28ULL) != 0x0000FFFFU) {
++      mS22PcieQmpStep = 3;
++      return EFI_TIMEOUT;
++    }
++
++    MmioWrite32 (S22_AOSS_QMP_BASE + 0x2CULL, 0x0000FFFFU);
++    MmioWrite32 (S22_IPCC_SEND_ID, 0U);
++
++    for (Poll = 0; Poll < 500; Poll++) {
++      if (MmioRead32 (S22_AOSS_QMP_BASE + 0x14ULL) == 0x0000FFFFU) break;
++      gBS->Stall (1000);
++    }
++    if (MmioRead32 (S22_AOSS_QMP_BASE + 0x14ULL) != 0x0000FFFFU) {
++      mS22PcieQmpStep = 4;
++      return EFI_TIMEOUT;
++    }
++
++    MmioWrite32 (S22_AOSS_QMP_BASE + 0x18ULL, 0x0000FFFFU);
++    MmioWrite32 (S22_IPCC_SEND_ID, 0U);
++
++    for (Poll = 0; Poll < 500; Poll++) {
++      if (MmioRead32 (S22_AOSS_QMP_BASE + 0x30ULL) == 0x0000FFFFU) break;
++      gBS->Stall (1000);
++    }
++    if (MmioRead32 (S22_AOSS_QMP_BASE + 0x30ULL) != 0x0000FFFFU) {
++      mS22PcieQmpStep = 5;
++      return EFI_TIMEOUT;
++    }
++  }
++
++  for (Poll = 0; Poll < 200; Poll++) {
++    if (MmioRead32 (S22_AOSS_QMP_BASE + Offset) == 0U) break;
++    gBS->Stall (1000);
++  }
++  if (MmioRead32 (S22_AOSS_QMP_BASE + Offset) != 0U) {
++    mS22PcieQmpStep = 6;
++    return EFI_DEVICE_ERROR;
++  }
++
++  ZeroMem (Words, sizeof (Words));
++  Len = AsciiStrLen (Msg);
++  if (Len >= 64U) Len = 63U;
++  CopyMem (Words, Msg, Len);
++
++  for (i = 0; i < 16; i++) {
++    MmioWrite32 (S22_AOSS_QMP_BASE + Offset + 4ULL + (i * 4ULL), Words[i]);
++  }
++  MmioWrite32 (S22_AOSS_QMP_BASE + Offset, 64U);
++  (VOID)MmioRead32 (S22_AOSS_QMP_BASE + Offset);
++  MmioWrite32 (S22_IPCC_SEND_ID, 0U);
++
++  for (Poll = 0; Poll < 500; Poll++) {
++    if (MmioRead32 (S22_AOSS_QMP_BASE + Offset) == 0U) {
++      mS22PcieQmpStep = 9;
++      return EFI_SUCCESS;
++    }
++    gBS->Stall (1000);
++  }
++
++  MmioWrite32 (S22_AOSS_QMP_BASE + Offset, 0U);
++  mS22PcieQmpStep = 7;
++  return EFI_TIMEOUT;
++}
++#endif
++
++STATIC
++BOOLEAN
++S22ClockEnableOne (
++  IN EFI_CLOCK_PROTOCOL  *Clock,
++  IN CONST CHAR8         *Name,
++  IN UINT32              FreqHz
++  )
++{
++  UINTN  ClkId  = 0;
++  UINT32 ResHz  = 0;
++
++  if (EFI_ERROR (Clock->GetClockID (Clock, Name, &ClkId))) {
++    return FALSE;
++  }
++  if (FreqHz != 0) {
++    (VOID)Clock->SetClockFreqHz (Clock, ClkId, FreqHz, EFI_CLOCK_FREQUENCY_HZ_AT_LEAST, &ResHz);
++  }
++  return !EFI_ERROR (Clock->EnableClock (Clock, ClkId));
++}
++
++STATIC
++VOID
++S22InitWlanAndPcie0 (
++  VOID
++  )
++{
++  EFI_STATUS          Status;
++  EFI_CLOCK_PROTOCOL  *Clock = NULL;
++  UINTN               PdId   = 0;
++  UINTN               i;
++  UINT32              Val;
++  UINT32              Poll;
++
++  // 1. Skip AOSS QMP in UEFI (Windows qcpep8450.sys owns AOSS QMP channel; s3e.e is only for 2.4 GHz TX)
++  mS22PcieQmpOk   = 0;
++  mS22PcieQmpStep = 0;
++
++  // 2. Assert PERST# LOW & hold WCN6855 OFF while initializing PCIe0 controller & QMP PHY
++  //    (exact linux-7.2.11 qcom_pcie_host_init order: PERST assert -> init -> PHY power_on -> WCN pwrseq -> PERST deassert)
++  S22TlmmSetOutput (94, FALSE);   // PCIE0_RESET_N (PERST#) LOW
++  S22TlmmSetFunc   (95, 1, 3);    // PCIE0_CLKREQ_N func 1, pull-up
++  S22TlmmSetFunc   (96, 0, 3);    // PCIE0_WAKE_N input, pull-up
++  S22TlmmSetOutput (80, FALSE);   // WLAN_EN LOW
++  S22TlmmSetOutput (204, FALSE);  // XO_CLK LOW
++
++  // 3. Enable SM8450 PCIe0 power domains & clocks via ClockDxe
++  Status = gBS->LocateProtocol (&gEfiClockProtocolGuid, NULL, (VOID **)&Clock);
++  if (EFI_ERROR (Status) || Clock == NULL) {
++    return;
++  }
++
++  mS22PciePdMask  = 0;
++  mS22PcieClkMask = 0;
++
++  if (!EFI_ERROR (Clock->GetClockPowerDomainID (Clock, "gcc_hlos1_vote_aggre_noc_mmu_pcie_tbu_gds", &PdId)) &&
++      !EFI_ERROR (Clock->EnableClockPowerDomain (Clock, PdId)))
++  {
++    mS22PciePdMask |= (1U << 0);
++  }
++  if (!EFI_ERROR (Clock->GetClockPowerDomainID (Clock, "gcc_pcie_0_gdsc", &PdId)) &&
++      !EFI_ERROR (Clock->EnableClockPowerDomain (Clock, PdId)))
++  {
++    mS22PciePdMask |= (1U << 1);
++  }
++
++  if (S22ClockEnableOne (Clock, "gcc_aggre_noc_pcie_0_axi_clk", 0))                mS22PcieClkMask |= (1U << 0);
++  if (S22ClockEnableOne (Clock, "gcc_aggre_noc_pcie_1_axi_clk", 0))                mS22PcieClkMask |= (1U << 1);
++  if (S22ClockEnableOne (Clock, "gcc_cfg_noc_pcie_anoc_ahb_clk", 0))               mS22PcieClkMask |= (1U << 2);
++  if (S22ClockEnableOne (Clock, "gcc_ddrss_pcie_sf_tbu_clk", 0))                   mS22PcieClkMask |= (1U << 3);
++  if (S22ClockEnableOne (Clock, "gcc_hlos1_vote_aggre_noc_mmu_pcie_tbu_clk", 0))   mS22PcieClkMask |= (1U << 4);
++  if (S22ClockEnableOne (Clock, "gcc_pcie_0_aux_clk", 19200000))                   mS22PcieClkMask |= (1U << 5);
++  if (S22ClockEnableOne (Clock, "gcc_pcie_0_cfg_ahb_clk", 0))                      mS22PcieClkMask |= (1U << 6);
++  if (S22ClockEnableOne (Clock, "gcc_pcie_0_mstr_axi_clk", 0))                     mS22PcieClkMask |= (1U << 7);
++  if (S22ClockEnableOne (Clock, "gcc_pcie_0_slv_axi_clk", 0))                      mS22PcieClkMask |= (1U << 8);
++  if (S22ClockEnableOne (Clock, "gcc_pcie_0_slv_q2a_axi_clk", 0))                  mS22PcieClkMask |= (1U << 9);
++  if (S22ClockEnableOne (Clock, "gcc_pcie_0_clkref_en", 0))                        mS22PcieClkMask |= (1U << 10);
++  if (S22ClockEnableOne (Clock, "gcc_pcie_0_phy_rchng_clk", 100000000))            mS22PcieClkMask |= (1U << 11);
++
++  // 4. Enable PIPE clock on REF_SRC (2 = 19.2 MHz XO) BEFORE pulsing GCC_PCIE_0_BCR so the DWC
++  //    PIPE clock domain receives clock edges to exit synchronous reset cleanly!
++  MmioOr32    (0x0019C004ULL, 1U);            // GCC_PCIE_0_CLKREF_EN
++  MmioWrite32 (S22_GCC_PCIE0_PIPE_SRC, 2U);   // PHY_MUX_REF_SRC (XO)
++  if (S22ClockEnableOne (Clock, "gcc_pcie_0_pipe_clk", 0)) {
++    mS22PcieClkMask |= (1U << 12);
++  }
++  // Explicitly assert APCS voted branch enables for all 6 PCIe0 clocks + phy_rchng + clear LINK_DOWN_BCR
++  MmioOr32    (0x00162008ULL, 0x3FU);         // slv_axi, mstr_axi, cfg_ahb, aux, pipe, slv_q2a
++  MmioOr32    (0x00162000ULL, (1U << 22));    // phy_rchng
++  MmioWrite32 (0x0017C014ULL, 0U);            // GCC_PCIE_0_LINK_DOWN_BCR = 0
++  MmioWrite32 (S22_GCC_PCIE0_PIPE_SRC, 2U);   // Ensure XO while controller resets
++  gBS->Stall (500);
++
++  // Reset PCIe0 controller & PHY (with PIPE clock running on XO!), then initialize PARF
++  MmioWrite32 (S22_GCC_PCIE0_BCR, 1U);
++  MmioWrite32 (S22_GCC_PCIE0_PHY_BCR, 1U);
++  gBS->Stall (1500);
++
++  MmioWrite32 (S22_GCC_PCIE0_BCR, 0U);
++  gBS->Stall (2000);
++
++  MmioWrite32 (S22_PCIE0_PARF_BASE + 0x1000ULL, 4U); // PARF_DEVICE_TYPE = RC
++  MmioAnd32   (S22_PCIE0_PARF_BASE + 0x0040ULL, ~1U); // clear PHY_TEST_PWR_DOWN
++  MmioWrite32 (S22_PCIE0_PARF_BASE + 0x0350ULL, (UINT32)S22_PCIE0_DBI_BASE);
++  MmioWrite32 (S22_PCIE0_PARF_BASE + 0x0354ULL, 0U);
++  MmioWrite32 (S22_PCIE0_PARF_BASE + 0x0634ULL, (UINT32)S22_PCIE0_ATU_BASE);
++  MmioWrite32 (S22_PCIE0_PARF_BASE + 0x0638ULL, 0U);
++  MmioWrite32 (S22_PCIE0_PARF_BASE + 0x0358ULL, 0U);
++  MmioWrite32 (S22_PCIE0_PARF_BASE + 0x035CULL, 0x80000000U); // SLV_ADDR_SPACE_SZ
++  MmioAnd32   (S22_PCIE0_PARF_BASE + 0x0000ULL, ~(1U << 29)); // PARF_SYS_CTRL
++  MmioOr32    (S22_PCIE0_PARF_BASE + 0x0174ULL, (1U << 4));   // PARF_MHI_CLOCK_RESET_CTRL BYPASS
++  MmioAnd32   (S22_PCIE0_PARF_BASE + 0x0020ULL, ~(1U << 5));  // PARF_PM_CTRL L1/L1SS
++  MmioOr32    (S22_PCIE0_PARF_BASE + 0x01A8ULL, (1U << 31));  // PARF_AXI_MSTR_WR_ADDR_HALT_V2 EN
++
++  // 5. Initialize SM8450 QMP Gen3x1 PCIe0 PHY (exact linux-7.2.11 qmp_pcie_power_on sequence)
++  MmioWrite32 (0x0017C020ULL, 0U); // GCC_PCIE_0_NOCSR_COM_PHY_BCR deassert
++  MmioWrite32 (0x0017C028ULL, 0U); // GCC_PCIE_0_PHY_NOCSR_COM_PHY_BCR deassert
++  MmioWrite32 (S22_GCC_PCIE0_PHY_BCR, 0U);
++  gBS->Stall (1000);
++
++  MmioOr32 (S22_PCIE0_PHY_BASE + S22_QPHY_V5_PCS_POWER_DOWN_CONTROL, 0x03U);
++  for (i = 0; i < ARRAY_SIZE (mS22Pcie0PhyTbl); i++) {
++    MmioWrite32 (S22_PCIE0_PHY_BASE + mS22Pcie0PhyTbl[i].Off, mS22Pcie0PhyTbl[i].Val);
++  }
++
++  // Switch PIPE mux from XO (2) to PHY PIPE clock (0) BEFORE releasing SW_RESET and starting SerDes/PCS
++  MmioWrite32 (S22_GCC_PCIE0_PIPE_SRC, 0U);
++  gBS->Stall (200);
++
++  MmioAnd32 (S22_PCIE0_PHY_BASE + S22_QPHY_V5_PCS_SW_RESET, ~1U);
++  MmioOr32  (S22_PCIE0_PHY_BASE + S22_QPHY_V5_PCS_START_CONTROL, 0x03U);
++  gBS->Stall (1200);
++
++  for (Poll = 0; Poll < 500; Poll++) {
++    Val = MmioRead32 (S22_PCIE0_PHY_BASE + S22_QPHY_V5_PCS_PCS_STATUS1);
++    mS22PciePhyStatus = Val;
++    if ((Val & (1U << 6)) == 0U) {
++      break;
++    }
++    gBS->Stall (100);
++  }
++  mS22PciePipeSrc  = MmioRead32 (S22_GCC_PCIE0_PIPE_SRC);
++  mS22PciePipeCbcr = MmioRead32 (0x0017B03CULL);
++  mS22PcieClkRef   = MmioRead32 (0x0019C004ULL);
++  mS22PcieCmnSta   = MmioRead32 (S22_PCIE0_PHY_BASE + 0x0140ULL); // QSERDES_V5_COM_CMN_STATUS
++  mS22PcieCrdy     = MmioRead32 (S22_PCIE0_PHY_BASE + 0x0178ULL); // QSERDES_V5_COM_C_READY_STATUS
++  mS22PcieSysCtrl  = MmioRead32 (S22_PCIE0_PARF_BASE + 0x0000ULL); // PARF_SYS_CTRL
++  mS22PciePcsSta2  = MmioRead32 (S22_PCIE0_PHY_BASE + 0x0218ULL); // PCS_STATUS2
++  if ((mS22PciePhyStatus & (1U << 6)) != 0U) {
++    return;
++  }
++
++  // 6. Power on WCN6855 AFTER PHY/REFCLK is up — exact pwrseq-qcom-wcn.c wcn6855 sequence:
++  //    XO_CLK(204)=1 -> 200us -> WLAN_EN(80)=1 -> 3.5ms -> XO_CLK(204)=0 (CRITICAL!) -> 60ms settle
++  gBS->Stall (2000);
++  S22TlmmSetOutput (204, TRUE);   // xo-clk-assert (with BIT12 EGPIO APSS ownership!)
++  gBS->Stall (200);
++  mS22PcieCtl204  = MmioRead32 (S22_TLMM_BASE + 204ULL * 0x1000ULL);
++  mS22PcieIo204Hi = MmioRead32 (S22_TLMM_BASE + 204ULL * 0x1000ULL + 4ULL);
++  S22TlmmSetOutput (80, TRUE);    // wlan-enable
++  gBS->Stall (3500);              // usleep_range(2000, 5000)
++  S22TlmmSetOutput (204, FALSE);  // xo-clk-deassert (MUST drop back LOW!)
++  gBS->Stall (60000);             // pwup_delay_ms (50ms + margin)
++
++  // 7. PARF post-init, disable Hot-Plug (HPC/HPS) while keeping PCIe Root Port capability intact,
++  //    PERST# deassert (100ms T_PVPERL), & BDF-to-SID table (slot 21!)
++  MmioOr32  (S22_PCIE0_DBI_BASE + 0x8BCULL, 1U); // DBI_RO_WR_EN
++  Val = MmioRead32 (S22_PCIE0_DBI_BASE + 0x084ULL);
++  Val &= ~((1U << 5) | (1U << 6));                        // Clear HPS (BIT5) & HPC (BIT6) in SLTCAP
++  Val |= (1U << 19);                                      // Test A: restore Stage 3b SLTCAP to isolate 0xD1
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x084ULL, Val);
++  MmioAnd32 (S22_PCIE0_DBI_BASE + 0x8BCULL, ~1U);
++
++  // Deassert PERST# (GPIO 94 HIGH) after PCIE_T_PVPERL_MS (100 ms) — exact qcom_pcie_host_init order!
++  gBS->Stall (100000);
++  S22TlmmSetOutput (94, TRUE);
++  gBS->Stall (20000);
++
++  // BDF-to-SID table: 01:00.0 (BDF 0x0100) hashes to CRC8 slot 21 (verified on r0q Linux!)
++  MmioAnd32 (S22_PCIE0_PARF_BASE + 0x2C00ULL, ~1U); // Disable BDF_TO_SID bypass
++  for (i = 0; i < 256; i++) {
++    MmioWrite32 (S22_PCIE0_PARF_BASE + 0x2000ULL + (i * 4ULL), 0U);
++  }
++  MmioWrite32 (S22_PCIE0_PARF_BASE + 0x2000ULL + (21ULL * 4ULL), (0x0100U << 16) | (1U << 8));
++
++  // 8. Configure Root Port DBI (0x60000000) for Bus 0 -> Bus 1, Gen2 x1 (matching dw_pcie_setup + dw_pcie_setup_rc)
++  MmioOr32 (S22_PCIE0_DBI_BASE + 0x8BCULL, 1U); // DBI_RO_WR_EN
++
++  // CRITICAL: Reserve 0x60300000..0x603FFFFF (1 MB) for Root Port 00:00.0's own 4 KB BAR0,
++  // and set bridge memory window to 0x60400000..0x63FFFFFF (60 MB) for WCN6855 01:00.0 (2 MB BAR0)!
++  // Otherwise 00:00.0's bridge window consumes 100% of PCI0._CRS (0x60300000..0x63FFFFFF) and BAR0 hits Code 12!
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x010ULL, 0x60300000U); // RC BAR0 = 0x60300000 (4 KB)
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x014ULL, 0U);
++
++  // Interrupt pin = INTA (per dw_pcie_setup_rc)
++  Val = MmioRead32 (S22_PCIE0_DBI_BASE + 0x03CULL);
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x03CULL, (Val & 0xFFFF00FFU) | 0x00000100U);
++
++  Val = MmioRead32 (S22_PCIE0_DBI_BASE + 0x008ULL);
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x008ULL, (Val & 0xFFU) | 0x06040000U); // PCI-to-PCI bridge class
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x018ULL, 0x00010100U);                // Primary=0, Sec=1, Sub=1
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x01CULL, 0x000000F0U);                // I/O window disabled
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x020ULL, 0x63F06040U);                // Mem 0x60400000..0x63FFFFFF (leaves 0x60300000 for RC BAR0!)
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x024ULL, 0x0000FFF0U);                // Prefetchable disabled
++
++  // Test A: restore Stage 3b LnkCap (clear L0s only) to isolate 0xD1
++  Val = MmioRead32 (S22_PCIE0_DBI_BASE + 0x07CULL);
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x07CULL, (Val & ~(0xFU | (1U << 10))) | 2U);
++  Val = MmioRead32 (S22_PCIE0_DBI_BASE + 0x0A0ULL);
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x0A0ULL, (Val & ~0xFU) | 2U);
++
++  // CRITICAL (dw_pcie_setup): Set PORT_LINK_DLL_LINK_EN (BIT5), clear FAST_LINK_MODE (BIT7), set 1-lane mode (1<<16)!
++  Val = MmioRead32 (S22_PCIE0_DBI_BASE + 0x710ULL);
++  Val &= ~((1U << 7) | (0x3FU << 16));
++  Val |= (1U << 5) | (1U << 16);
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x710ULL, Val);
++
++  // 1-lane link width (GENMASK(12,8) = 0x1F<<8!) + direct speed change (BIT17)
++  Val = MmioRead32 (S22_PCIE0_DBI_BASE + 0x80CULL);
++  MmioWrite32 (S22_PCIE0_DBI_BASE + 0x80CULL, (Val & ~(0x1FU << 8)) | (1U << 8) | (1U << 17));
++
++  MmioAnd32 (S22_PCIE0_DBI_BASE + 0x8BCULL, ~1U); // DBI_RO_WR_DIS
++  MmioOr32  (S22_PCIE0_DBI_BASE + 0x004ULL, 0x0107U); // I/O + Mem + Bus Master + SERR
++
++  // Snapshot GPIO IN states: bit0=G80(WLAN_EN), bit1=G94(PERST#), bit2=G95(CLKREQ#), bit3=G204(XO_CLK), bit4=G82(SWCTRL)
++  mS22PcieGpioMask = 0;
++  if (MmioRead32 (S22_TLMM_BASE + 80ULL  * 0x1000ULL + 4ULL) & 1U) mS22PcieGpioMask |= (1U << 0);
++  if (MmioRead32 (S22_TLMM_BASE + 94ULL  * 0x1000ULL + 4ULL) & 1U) mS22PcieGpioMask |= (1U << 1);
++  if (MmioRead32 (S22_TLMM_BASE + 95ULL  * 0x1000ULL + 4ULL) & 1U) mS22PcieGpioMask |= (1U << 2);
++  if (MmioRead32 (S22_TLMM_BASE + 204ULL * 0x1000ULL + 4ULL) & 1U) mS22PcieGpioMask |= (1U << 3);
++  if (MmioRead32 (S22_TLMM_BASE + 82ULL  * 0x1000ULL + 4ULL) & 1U) mS22PcieGpioMask |= (1U << 4);
++
++  // 9. Enable LTSSM & poll link training
++  MmioOr32 (S22_PCIE0_PARF_BASE + 0x01B0ULL, (1U << 8)); // PARF_LTSSM LTSSM_EN
++
++  // On SM8450 (ops_1_9_0), real link status is in DBI PCIE_PORT_DEBUG0 (0x728) & PCIE_PORT_DEBUG1 (0x72C)!
++  // Fast 10us poll for first 40ms (catches 20us DETECT_ACT pulses), then 1ms poll up to 500ms!
++  mS22PcieSeen = 0;
++  for (Poll = 0; Poll < 4500; Poll++) {
++    UINT32 Dbg0  = MmioRead32 (S22_PCIE0_DBI_BASE + 0x728ULL);
++    UINT32 Dbg1  = MmioRead32 (S22_PCIE0_DBI_BASE + 0x72CULL);
++    UINT32 State = Dbg0 & 0x3FU;
++    mS22PcieDbg0 = Dbg0;
++    mS22PcieDbg1 = Dbg1;
++    if (State < 32U) {
++      mS22PcieSeen |= (1U << State);
++    }
++    if ((Dbg1 & (1U << 4)) != 0U && (Dbg1 & (1U << 29)) == 0U) {
++      break; // PCIE_PORT_DEBUG1_LINK_UP && !LINK_IN_TRAINING!
++    }
++    gBS->Stall ((Poll < 4000) ? 10 : 1000);
++  }
++
++  // Capture full GCC / PARF / DBI diagnostic snapshot
++  mS22PcieGdsc      = MmioRead32 (0x0017B004ULL);
++  mS22PcieVote2     = MmioRead32 (0x00162008ULL);
++  mS22PcieAuxCbcr   = MmioRead32 (0x0017B034ULL);
++  mS22PcieCfgCbcr   = MmioRead32 (0x0017B030ULL);
++  mS22PcieMstrCbcr  = MmioRead32 (0x0017B028ULL);
++  mS22PcieSlvCbcr   = MmioRead32 (0x0017B020ULL);
++  mS22PcieRchngCbcr = MmioRead32 (0x0017B044ULL);
++  mS22PcieAuxRcg    = MmioRead32 (0x0017B064ULL);
++  mS22PcieLdbcr     = MmioRead32 (0x0017C014ULL);
++  mS22PcieParfLtssm = MmioRead32 (S22_PCIE0_PARF_BASE + 0x01B0ULL);
++  mS22PcieParfPm    = MmioRead32 (S22_PCIE0_PARF_BASE + 0x0020ULL);
++  mS22PcieParfPctrl = MmioRead32 (S22_PCIE0_PARF_BASE + 0x0040ULL);
++  mS22PciePlc       = MmioRead32 (S22_PCIE0_DBI_BASE + 0x0710ULL);
++  mS22PcieLwsc      = MmioRead32 (S22_PCIE0_DBI_BASE + 0x080CULL);
++
++  // 10. Program iATU Outbound Region 0 (ECAM CFG0 Bus 1 Dev 0 Func 0 ONLY: 4 KB = 0x60100000..0x60100FFF!)
++  //     CRITICAL: Limiting to 0x00FFF prevents 01:01.0..01:1F.0 from aliasing WCN6855 (which gave ep1=0x110317CB
++  //     and caused Windows pci.sys to spawn 32 duplicate copies of qcwlan8280.sys!).
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x008ULL, (UINT32)S22_PCIE0_CFG1_BASE);
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x00CULL, 0U);
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x010ULL, (UINT32)(S22_PCIE0_CFG1_BASE + 0x00FFFU));
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x020ULL, 0U);
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x014ULL, 0U);
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x018ULL, 0U);
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x000ULL, 0x04U); // PCIE_ATU_TYPE_CFG0
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x004ULL, (1U << 31) | (1U << 28)); // ENABLE | CFG_SHIFT_MODE
++  for (Poll = 0; Poll < 50; Poll++) {
++    if ((MmioRead32 (S22_PCIE0_ATU_BASE + 0x004ULL) & (1U << 31)) != 0U) break;
++    gBS->Stall (100);
++  }
++  mS22PcieAuxRcg = MmioRead32 (S22_PCIE0_ATU_BASE + 0x010ULL); // Reuse field to verify actual iATU Limit readback!
++
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x208ULL, (UINT32)S22_PCIE0_MEM_BASE);
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x20CULL, 0U);
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x210ULL, (UINT32)S22_PCIE0_MEM_LIMIT);
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x220ULL, 0U);
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x214ULL, (UINT32)S22_PCIE0_MEM_BASE);
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x218ULL, 0U);
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x200ULL, 0x00U); // PCIE_ATU_TYPE_MEM
++  MmioWrite32 (S22_PCIE0_ATU_BASE + 0x204ULL, (1U << 31)); // ENABLE
++  for (Poll = 0; Poll < 50; Poll++) {
++    if ((MmioRead32 (S22_PCIE0_ATU_BASE + 0x204ULL) & (1U << 31)) != 0U) break;
++    gBS->Stall (100);
++  }
++
++  // 11. Probe Root Port + Endpoint IDs (only read Bus 1 / Dev 1 if LINK_UP is asserted)
++  mS22PcieRpId   = MmioRead32 (S22_PCIE0_DBI_BASE + 0x0000ULL);
++  mS22PcieLnkSta = MmioRead32 (S22_PCIE0_DBI_BASE + 0x0080ULL);
++  if ((mS22PcieDbg1 & (1U << 4)) != 0U) {
++    gBS->Stall (10000);
++    mS22PcieEpId    = MmioRead32 (S22_PCIE0_CFG1_BASE + 0x0000ULL);
++    mS22PcieEp1Id   = MmioRead32 (S22_PCIE0_CFG1_BASE + 0x8000ULL);
++    mS22PcieEpBar0  = MmioRead32 (S22_PCIE0_CFG1_BASE + 0x0010ULL);
++    mS22PcieSlvCbcr = MmioRead32 (S22_PCIE0_CFG1_BASE + 0x003CULL); // WCN6855 InterruptLine/Pin
++    mS22PcieDev1Id  = MmioRead32 (S22_PCIE0_DBI_BASE + 0x8000ULL);
++  }
++  mS22GicdCtlr  = MmioRead32 (0x17100000ULL);
++  mS22GicdTyper = MmioRead32 (0x17100004ULL);
++  mS22SmmuCr0   = MmioRead32 (0x15000000ULL);
++  mS22SmmuIdr0  = MmioRead32 (0x15000020ULL);
++  mS22SmmuGfsr  = MmioRead32 (0x15000048ULL);
++
++  // 12. Configure apps_smmu (0x15000000) hardware BYPASS for PCIe0 SIDs 0x1C00 (RC) & 0x1C01 (WCN6855)!
++  //     CRITICAL: SM8450 QHEE leaves sCR0=0x2B0406 (CLIENTPD=0, USFCFG=1 = Unidentified Stream Fault!),
++  //     which hard-resets the SoC on WCN6855's very first DMA/MSI TLP unless SID 0x1C00/0x1C01 has a valid SMR+S2CR!
++  //     Uses exact Linux arm-smmu-qcom.c bypass_quirk detection (emulate bypass via CB[num_cb-1] SCTLR=0 if needed).
++  {
++    CONST UINT64 SmmuBase = 0x15000000ULL;
++    UINT32       Idr1     = MmioRead32 (SmmuBase + 0x24ULL);
++    UINT32       NumSmrg  = mS22SmmuIdr0 & 0xFFU;
++    UINT32       NumCb    = Idr1 & 0xFFU;
++    UINT32       PgShift  = (Idr1 & (1U << 31)) ? 16U : 12U;
++    UINT32       NumPage  = 1U << (((Idr1 >> 28) & 0x7U) + 1U);
++    UINT32       Slot     = 0xFFFFFFFFU;
++    INT32        Idx;
++
++    if (NumSmrg > 128U) {
++      NumSmrg = 128U;
++    }
++    // Check ALL existing valid SMRs independently for BOTH 0x1C00 and 0x1C01
++    {
++      BOOLEAN Has1C00 = FALSE;
++      BOOLEAN Has1C01 = FALSE;
++      for (Idx = 0; Idx < (INT32)NumSmrg; Idx++) {
++        UINT32 CurSmr = MmioRead32 (SmmuBase + 0x800ULL + ((UINT64)Idx * 4ULL));
++        if ((CurSmr & (1U << 31)) != 0U) {
++          UINT32 CurMask = (CurSmr >> 16) & 0x7FFFU;
++          UINT32 CurId   = CurSmr & 0x7FFFU;
++          if ((0x1C00U & ~CurMask) == (CurId & ~CurMask)) Has1C00 = TRUE;
++          if ((0x1C01U & ~CurMask) == (CurId & ~CurMask)) Has1C01 = TRUE;
++        }
++      }
++      if (!Has1C00 && !Has1C01) {
++        for (Idx = (INT32)NumSmrg - 1; Idx >= 0; Idx--) {
++          if ((MmioRead32 (SmmuBase + 0x800ULL + ((UINT64)Idx * 4ULL)) & (1U << 31)) == 0U) {
++            Slot = (UINT32)Idx;
++            break;
++          }
++        }
++      }
++    }
++
++    if (Slot != 0xFFFFFFFFU && NumCb > 0U) {
++      UINT64 S2crAddr = SmmuBase + 0xC00ULL + ((UINT64)Slot * 4ULL);
++      UINT64 SmrAddr  = SmmuBase + 0x800ULL + ((UINT64)Slot * 4ULL);
++      UINT32 S2crVal;
++
++      // Probe raw S2CR_TYPE_BYPASS (1 << 16)
++      MmioWrite32 (S2crAddr, (1U << 16) | 0xFFU);
++      S2crVal = MmioRead32 (S2crAddr);
++      if (((S2crVal >> 16) & 0x3U) != 1U) {
++        // qcom_smmu bypass_quirk active: reserve last context bank (NumCb - 1) with SCTLR=0 (Stage-1 disabled = bypass!)
++        UINT32 CbIdx    = NumCb - 1U;
++        UINT64 Gr1Cbar  = SmmuBase + (1ULL << PgShift) + ((UINT64)CbIdx * 4ULL);
++        UINT64 CbSctlr  = SmmuBase + (((UINT64)NumPage + (UINT64)CbIdx) << PgShift);
++        MmioWrite32 (CbSctlr, 0U);            // ARM_SMMU_CB_SCTLR = 0 (MMU disabled -> 1:1 bypass)
++        MmioWrite32 (Gr1Cbar, (1U << 16));    // CBAR_TYPE_S1_TRANS_S2_BYPASS
++        MmioWrite32 (S2crAddr, CbIdx & 0xFFU); // S2CR_TYPE_TRANS (0<<16) | CbIdx
++      }
++      MemoryFence ();
++      // Enable SMR[Slot]: VALID(BIT31) | MASK=0x0001(bits 30:16) | ID=0x1C00(bits 15:0) -> matches 0x1C00 & 0x1C01!
++      MmioWrite32 (SmrAddr, (1U << 31) | (0x0001U << 16) | 0x1C00U);
++      MemoryFence ();
++
++      mS22SmmuS2cr = MmioRead32 (S2crAddr);
++      mS22SmmuSmr  = MmioRead32 (SmrAddr);
++    }
++  }
++
++  // 13. Arm DesignWare PCIe0 Integrated MSI Receiver (iMSI-RX) for APIC 0x0D MSI Frame @ 0x17100000!
++  //     Ensure PARF_INT_ALL_MASK (0x22C) allows MSI interrupts (BIT13 | GENMASK(30,23)).
++  {
++    UINT32 Bank;
++    MmioOr32 (S22_PCIE0_PARF_BASE + 0x022CULL, 0x7F802000U);
++    MmioWrite32 (S22_PCIE0_DBI_BASE + 0x820ULL, 0x17100040U); // PCIE_MSI_ADDR_LO
++    MmioWrite32 (S22_PCIE0_DBI_BASE + 0x824ULL, 0x00000000U); // PCIE_MSI_ADDR_HI
++    for (Bank = 0; Bank < 8U; Bank++) {
++      UINT64 Off = (UINT64)Bank * 0x0CULL;
++      MmioWrite32 (S22_PCIE0_DBI_BASE + 0x830ULL + Off, 0xFFFFFFFFU); // clear stale STATUS
++      MmioWrite32 (S22_PCIE0_DBI_BASE + 0x82CULL + Off, 0x00000000U); // unmask all
++      MmioWrite32 (S22_PCIE0_DBI_BASE + 0x828ULL + Off, 0xFFFFFFFFU); // enable all
++    }
++    mS22PcieLdbcr    = MmioRead32 (S22_PCIE0_DBI_BASE + 0x820ULL);
++    mS22PcieRchngCbcr = MmioRead32 (S22_PCIE0_PARF_BASE + 0x022CULL);
++  }
++}
++
++STATIC
++VOID
++S22FlushPcieLog (
++  VOID
++  )
++{
++  EFI_STATUS  Status;
++  UINTN       HandleCount = 0;
++  EFI_HANDLE  *Handles    = NULL;
++  UINTN       Index;
++  CHAR8       LogBuf[512];
++  UINTN       LogLen;
++
++  if (mS22PcieLogWritten) {
++    return;
++  }
++
++  LogLen = AsciiSPrint (
++             LogBuf,
++             sizeof (LogBuf),
++             "g=0x%x c204=0x%x io204=0x%x phy=0x%x p2=0x%x cmn=0x%x crdy=0x%x seen=0x%x d0=0x%x d1=0x%x ls=0x%x rp=0x%08x ep=0x%08x ep1=0x%08x dev1=0x%08x\r\n"
++             "gdsc=0x%x v2=0x%x aux=0x%x cfg=0x%x mstr=0x%x slv=0x%x rchng=0x%x auxrcg=0x%x ldb=0x%x ltssm=0x%x pm=0x%x pctrl=0x%x plc=0x%x lwsc=0x%x gicdc=0x%x gicdt=0x%x smmu=0x%x/0x%x/0x%x/%x/%x\r\n",
++             mS22PcieGpioMask,
++             mS22PcieCtl204,
++             mS22PcieIo204Hi,
++             mS22PciePhyStatus,
++             mS22PciePcsSta2,
++             mS22PcieCmnSta,
++             mS22PcieCrdy,
++             mS22PcieSeen,
++             mS22PcieDbg0,
++             mS22PcieDbg1,
++             mS22PcieLnkSta,
++             mS22PcieRpId,
++             mS22PcieEpId,
++             mS22PcieEp1Id,
++             mS22PcieDev1Id,
++             mS22PcieGdsc,
++             mS22PcieVote2,
++             mS22PcieAuxCbcr,
++             mS22PcieCfgCbcr,
++             mS22PcieMstrCbcr,
++             mS22PcieSlvCbcr,
++             mS22PcieRchngCbcr,
++             mS22PcieAuxRcg,
++             mS22PcieLdbcr,
++             mS22PcieParfLtssm,
++             mS22PcieParfPm,
++             mS22PcieParfPctrl,
++             mS22PciePlc,
++             mS22PcieLwsc,
++             mS22GicdCtlr,
++             mS22GicdTyper,
++             mS22SmmuCr0,
++             mS22SmmuIdr0,
++             mS22SmmuGfsr,
++             mS22SmmuS2cr,
++             mS22SmmuSmr
++             );
++
++  Status = gBS->LocateHandleBuffer (
++                  ByProtocol,
++                  &gEfiSimpleFileSystemProtocolGuid,
++                  NULL,
++                  &HandleCount,
++                  &Handles
++                  );
++  if (EFI_ERROR (Status) || Handles == NULL || HandleCount == 0) {
++    return;
++  }
++
++  for (Index = 0; Index < HandleCount; Index++) {
++    EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *Fs     = NULL;
++    EFI_FILE_PROTOCOL                *Root   = NULL;
++    EFI_FILE_PROTOCOL                *EfiDir = NULL;
++    EFI_FILE_PROTOCOL                *S22Dir = NULL;
++    EFI_FILE_PROTOCOL                *File   = NULL;
++
++    if (EFI_ERROR (gBS->HandleProtocol (Handles[Index], &gEfiSimpleFileSystemProtocolGuid, (VOID **)&Fs)) || Fs == NULL) {
++      continue;
++    }
++    if (EFI_ERROR (Fs->OpenVolume (Fs, &Root)) || Root == NULL) {
++      continue;
++    }
++
++    // Only write to the ESP (the FAT32 volume that already contains \EFI)
++    if (!EFI_ERROR (Root->Open (Root, &EfiDir, L"EFI", EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE, 0)) && EfiDir != NULL) {
++      if (!EFI_ERROR (EfiDir->Open (EfiDir, &S22Dir, L"S22", EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, EFI_FILE_DIRECTORY)) && S22Dir != NULL) {
++        if (!EFI_ERROR (S22Dir->Open (S22Dir, &File, L"pcie_log.txt", EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE | EFI_FILE_MODE_CREATE, 0)) && File != NULL) {
++          UINTN WriteLen = LogLen;
++          File->SetPosition (File, 0);
++          File->Write (File, &WriteLen, LogBuf);
++          File->Flush (File);
++          File->Close (File);
++          mS22PcieLogWritten = TRUE;
++        }
++        S22Dir->Close (S22Dir);
++      }
++      EfiDir->Close (EfiDir);
++      Root->Close (Root);
++      break;
++    }
++
++    Root->Close (Root);
++  }
++
++  FreePool (Handles);
++}
++
++STATIC
++VOID
++S22CheckRebootTwrpFlag (
++  VOID
++  )
++{
++  EFI_STATUS                       Status;
++  UINTN                            HandleCount = 0;
++  EFI_HANDLE                       *Handles    = NULL;
++  UINTN                            Index;
++
++  Status = gBS->LocateHandleBuffer (
++                  ByProtocol,
++                  &gEfiSimpleFileSystemProtocolGuid,
++                  NULL,
++                  &HandleCount,
++                  &Handles
++                  );
++  if (EFI_ERROR (Status) || Handles == NULL || HandleCount == 0) {
++    return;
++  }
++
++  for (Index = 0; Index < HandleCount; Index++) {
++    EFI_SIMPLE_FILE_SYSTEM_PROTOCOL  *Fs   = NULL;
++    EFI_FILE_PROTOCOL                *Root = NULL;
++    EFI_FILE_PROTOCOL                *File = NULL;
++
++    if (EFI_ERROR (gBS->HandleProtocol (Handles[Index], &gEfiSimpleFileSystemProtocolGuid, (VOID **)&Fs)) || Fs == NULL) {
++      continue;
++    }
++    if (EFI_ERROR (Fs->OpenVolume (Fs, &Root)) || Root == NULL) {
++      continue;
++    }
++
++    Status = Root->Open (
++                     Root,
++                     &File,
++                     L"\\EFI\\S22\\reboot_twrp.flag",
++                     EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE,
++                     0
++                     );
++    if (!EFI_ERROR (Status) && File != NULL) {
++      EFI_QCOM_PMIC_PON_PROTOCOL  *PmicPon   = NULL;
++      S22_SPMI_PROTOCOL           *Spmi      = NULL;
++      UINT8                       SdamVal    = 0;
++      UINT32                      BytesRead  = 0;
++
++      // Always delete the one-shot flag BEFORE rebooting so it never loops
++      File->Delete (File);
++      Root->Close (Root);
++      FreePool (Handles);
++
++      // Samsung Galaxy S22 (r0q / PMK8350) ABL reads reboot_reason from PMK8350 SDAM_2 @ 0x7148 bits[7:1]
++      // Verified from pmk8350.dtsi & s22-linux/docs/boot-log.md: mode-recovery = 0x01 -> (0x01 << 1) = 0x02
++      Status = gBS->LocateProtocol (&gS22SpmiProtocolGuid, NULL, (VOID **)&Spmi);
++      if (!EFI_ERROR (Status) && Spmi != NULL && Spmi->ReadLong != NULL && Spmi->WriteLong != NULL) {
++        (VOID)Spmi->ReadLong (Spmi, 0, 0, 0, 0x7148, &SdamVal, 1, &BytesRead);
++        SdamVal = (UINT8)((SdamVal & 0x01U) | 0x02U);
++        (VOID)Spmi->WriteLong (Spmi, 0, 0, 0, 0x7148, &SdamVal, 1);
++      }
++
++      // Also set PON SOFT_SPARE as secondary fallback
++      Status = gBS->LocateProtocol (&gQcomPmicPonProtocolGuid, NULL, (VOID **)&PmicPon);
++      if (!EFI_ERROR (Status) && PmicPon != NULL && PmicPon->SetSpareReg != NULL) {
++        PmicPon->SetSpareReg (0, EFI_PM_PON_SOFT_SPARE, 0x02, 0xFE);
++      }
++
++      gBS->Stall (100000);
++      // Clean warm reset WITHOUT RESET_PARAM override so SDAM 0x7148 stays 0x02 for Samsung ABL -> TWRP!
++      gRT->ResetSystem (EfiResetWarm, EFI_SUCCESS, 0, NULL);
++      gRT->ResetSystem (EfiResetCold, EFI_SUCCESS, 0, NULL);
++      return;
++    }
++
++    Root->Close (Root);
++  }
++
++  FreePool (Handles);
++}
++
++STATIC
++VOID
++EFIAPI
++S22UsbOtgTimerCallback (
++  IN EFI_EVENT  Event,
++  IN VOID       *Context
++  )
++{
++  S22CheckRebootTwrpFlag ();
++  S22FlushPcieLog ();
++  S22ConfigureMax77705OtgAndMuic ();
++  S22ForceDwc3HostRegs ();
++}
++
++STATIC
++VOID
++S22PrepareUsbHost (
++  VOID
++  )
++{
++  EFI_STATUS               Status;
++  S22_USB_CONFIG_PROTOCOL  *UsbCfg = NULL;
++
++  // 1. Configure MAX77705 OTG 5V/1500mA boost AND route MUIC D+/D- to AP_USB (Opcode 0x06 = 0x09)
++  S22ConfigureMax77705OtgAndMuic ();
++  gBS->Stall (20000);
++
++  // 2. Start USB Core 0 in native Host Mode (ModeType = 1 = USB_HOST_MODE_XHCI) via UsbConfigDxe
++  Status = gBS->LocateProtocol (&gS22UsbConfigProtocolGuid, NULL, (VOID **)&UsbCfg);
++  if (!EFI_ERROR (Status) && UsbCfg != NULL && UsbCfg->StartController != NULL) {
++    (VOID)UsbCfg->StartController (UsbCfg, 0, 1); // Core 0, USB_HOST_MODE_XHCI (1)
++    gBS->Stall (100000);
++  }
++
++  // 3. Re-apply MUIC D+/D- switch & DWC3 Host regs after UsbConfigDxe init
++  S22ConfigureMax77705OtgAndMuic ();
++  S22ForceDwc3HostRegs ();
++
++  // 4. Keep a 2-second periodic timer during UEFI Boot Manager so hot-plugging OTG hub during
++  //    the 15s countdown re-closes MUIC D+/D- (0x06, 0x09) and enables 5V OTG boost
++  if (mS22UsbOtgTimerEvent == NULL) {
++    Status = gBS->CreateEvent (
++                    EVT_TIMER | EVT_NOTIFY_SIGNAL,
++                    TPL_CALLBACK,
++                    S22UsbOtgTimerCallback,
++                    NULL,
++                    &mS22UsbOtgTimerEvent
++                    );
++    if (!EFI_ERROR (Status)) {
++      (VOID)gBS->SetTimer (mS22UsbOtgTimerEvent, TimerPeriodic, 10000000ULL); // 1s in 100ns units
++    }
++  }
++}
++
++EFI_HANDLE
++EFIAPI
++DeviceBootManagerBeforeConsole (
++  OUT EFI_DEVICE_PATH_PROTOCOL  **DevicePath,
++  OUT BDS_CONSOLE_CONNECT_ENTRY **PlatformConsoles)
++{
++  return NULL;
++}
++
++EFI_DEVICE_PATH_PROTOCOL**
++EFIAPI
++DeviceBootManagerAfterConsole ()
++{
++  EFI_STATUS Status;
++  EFI_EVENT  InitEvent;
++
++  // Check for one-shot TWRP recovery reboot flag written from Windows Desktop
++  S22CheckRebootTwrpFlag ();
++
++  // Power on Galaxy S22 (r0q) FTS2BA61Y touchscreen + USB + PCIe0/WCN6855 RPMh rails
++  S22EnableTouchRails ();
++
++  // Stage 1: Bring up WCN6855 + SM8450 PCIe0 RC & log link/VID:DID to \EFI\S22\pcie_log.txt
++  S22InitWlanAndPcie0 ();
++  S22FlushPcieLog ();
++
++  // Configure SM8450 DWC3 in USB Host mode + 5V OTG boost (when no external VBUS/charger)
++  S22PrepareUsbHost ();
++
++  // Create SD Card Init Event
++  Status = gBS->CreateEventEx (EVT_NOTIFY_SIGNAL, TPL_CALLBACK, DummyNotify, NULL, &gSdCardInitGuid, &InitEvent);
++  if (EFI_ERROR (Status)) {
++    DEBUG ((EFI_D_ERROR, "%a: Failed to Create SD Card Init Event! Status = %r\n", __FUNCTION__, Status));
++    return NULL;
++  }
++
++  // Init SD Card
++  gBS->SignalEvent (InitEvent);
++  gBS->CloseEvent  (InitEvent);
++
++  return NULL;
++}
++
++EFI_DEVICE_PATH_PROTOCOL**
++EFIAPI
++DeviceBootManagerOnDemandConInConnect ()
++{
++  EFI_STATUS Status;
++  EFI_EVENT  InitEvent;
++
++  // Create USB Controller Start Event
++  Status = gBS->CreateEventEx (EVT_NOTIFY_SIGNAL, TPL_CALLBACK, DummyNotify, NULL, &gUsbControllerInitGuid, &InitEvent);
++  if (EFI_ERROR (Status)) {
++    DEBUG ((EFI_D_ERROR, "%a: Failed to Create USB Port Controller Start Event! Status = %r\n", __FUNCTION__, Status));
++    return NULL;
++  }
++
++  // Start USB Controller
++  gBS->SignalEvent (InitEvent);
++  gBS->CloseEvent  (InitEvent);
++
++  return NULL;
++}
++
++VOID
++EFIAPI
++DeviceBootManagerProcessBootCompletion (OUT EFI_BOOT_MANAGER_LOAD_OPTION *BootOption)
++{
++  return;
++}
++
++EFI_STATUS
++EFIAPI
++DeviceBootManagerPriorityBoot (IN OUT EFI_BOOT_MANAGER_LOAD_OPTION *BootOption)
++{
++  return EFI_SUCCESS;
++}
++
++VOID
++EFIAPI
++DeviceBootManagerUnableToBoot ()
++{
++  return;
++}
++
++STATIC
++VOID
++ExitBootServicesCallback (
++  IN EFI_EVENT Event,
++  IN VOID     *Context)
++{
++  EFI_STATUS Status;
++  QCOM_SCM_PROTOCOL *ScmProtocol;
++
++  // Re-assert DWC3 Host mode before handing off to Windows
++  S22ForceDwc3HostRegs ();
++
++  // Locate SCM Protocol
++  Status = gBS->LocateProtocol (&gQcomScmProtocolGuid, NULL, (VOID *)&ScmProtocol);
++  if (EFI_ERROR (Status)) {
++    DEBUG ((EFI_D_ERROR, "%a: Failed to Locate SCM Protocol! Status = %r\n", __FUNCTION__, Status));
++    return;
++  }
++
++  // Call Exit Boot Services Callback
++  Status = ScmProtocol->ScmExitBootServicesHandler(ScmProtocol);
++  if (EFI_ERROR (Status)) {
++    DEBUG ((EFI_D_ERROR, "%a: Failed to Call Exit Boot Services Callback! Status = %r\n", __FUNCTION__, Status));
++    return;
++  }
++
++  return;
++}
++
++STATIC
++VOID
++EFIAPI
++RegisterEBSCallback ()
++{
++  EFI_STATUS Status;
++  EFI_EVENT  EBSEvent;
++
++  // Create Exit Boot Services Event
++  Status = gBS->CreateEventEx (EVT_NOTIFY_SIGNAL, TPL_CALLBACK, ExitBootServicesCallback, NULL, &gEfiEventExitBootServicesGuid, &EBSEvent);
++  if (EFI_ERROR (Status)) {
++    DEBUG ((EFI_D_ERROR, "%a: Failed to Create ExitBootServices Event! Status = %r\n", __FUNCTION__, Status));
++  }
++
++  return;
++}
++
++VOID
++EFIAPI
++DeviceBootManagerBdsEntry ()
++{
++  // Protect Shared RFS Area
++  ProtectRfsSharedArea ();
++
++  // Register EBS Callback
++  RegisterEBSCallback ();
++}
+diff --git a/Silicon/Qualcomm/QcomPkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf b/Silicon/Qualcomm/QcomPkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf
+index c3ad7e9f..bf3afb7a 100644
+--- a/Silicon/Qualcomm/QcomPkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf
++++ b/Silicon/Qualcomm/QcomPkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf
+@@ -1,29 +1,39 @@
+-[Defines]
+-  INF_VERSION                    = 0x00010005
+-  BASE_NAME                      = PlatformBootManagerLib
+-  FILE_GUID                      = FF23E264-1815-415A-92F5-C6123140ED3B
+-  MODULE_TYPE                    = DXE_DRIVER
+-  VERSION_STRING                 = 1.0
+-  LIBRARY_CLASS                  = DeviceBootManagerLib|DXE_DRIVER
+-
+-[Sources]
+-  PlatformBootManager.c
+-
+-[Packages]
+-  MdePkg/MdePkg.dec
+-  MdeModulePkg/MdeModulePkg.dec
+-  MsCorePkg/MsCorePkg.dec
+-  QcomPkg/QcomPkg.dec
+-
+-[LibraryClasses]
+-  DebugLib
+-  UefiBootServicesTableLib
+-  RfsProtectionLib
+-
+-[Guids]
+-  gUsbControllerInitGuid
+-  gSdCardInitGuid
+-  gEfiEventExitBootServicesGuid
+-
+-[Protocols]
+-  gQcomScmProtocolGuid
+\ No newline at end of file
++[Defines]
++  INF_VERSION                    = 0x00010005
++  BASE_NAME                      = PlatformBootManagerLib
++  FILE_GUID                      = FF23E264-1815-415A-92F5-C6123140ED3B
++  MODULE_TYPE                    = DXE_DRIVER
++  VERSION_STRING                 = 1.0
++  LIBRARY_CLASS                  = DeviceBootManagerLib|DXE_DRIVER
++
++[Sources]
++  PlatformBootManager.c
++
++[Packages]
++  MdePkg/MdePkg.dec
++  MdeModulePkg/MdeModulePkg.dec
++  MsCorePkg/MsCorePkg.dec
++  QcomPkg/QcomPkg.dec
++
++[LibraryClasses]
++  BaseLib
++  BaseMemoryLib
++  DebugLib
++  IoLib
++  MemoryAllocationLib
++  PrintLib
++  UefiBootServicesTableLib
++  UefiRuntimeServicesTableLib
++  RfsProtectionLib
++
++[Guids]
++  gUsbControllerInitGuid
++  gSdCardInitGuid
++  gEfiEventExitBootServicesGuid
++
++[Protocols]
++  gEfiClockProtocolGuid
++  gQcomI2CProtocolGuid
++  gQcomPmicPonProtocolGuid
++  gQcomScmProtocolGuid
++  gEfiSimpleFileSystemProtocolGuid
+diff --git a/Silicon/Qualcomm/QcomPkg/Library/PlatformBootOptionsLib/PlatformBootOptions.c b/Silicon/Qualcomm/QcomPkg/Library/PlatformBootOptionsLib/PlatformBootOptions.c
+index 3a0a8a25..56c87e3f 100644
+--- a/Silicon/Qualcomm/QcomPkg/Library/PlatformBootOptionsLib/PlatformBootOptions.c
++++ b/Silicon/Qualcomm/QcomPkg/Library/PlatformBootOptionsLib/PlatformBootOptions.c
+@@ -11,8 +11,8 @@ GetPlatformBootOptions (
+   EFI_PLATFORM_BOOT_OPTION *LocalBootOption      = NULL;
+   UINT8                     LocalBootOptionCount = 0;
+ 
+-  // Allocate Memory
+-  LocalBootOption = AllocateZeroPool (sizeof (EFI_PLATFORM_BOOT_OPTION));
++  // Allocate Memory for 3 Platform Boot Options
++  LocalBootOption = AllocateZeroPool (sizeof (EFI_PLATFORM_BOOT_OPTION) * 3);
+   if (LocalBootOption == NULL) {
+     DEBUG ((EFI_D_ERROR, "%a: Failed to Allocate Memory for Boot Options!\n", __FUNCTION__));
+     goto exit;
+@@ -23,8 +23,18 @@ GetPlatformBootOptions (
+   LocalBootOption[0].AppGuid       = FixedPcdGetPtr (PcdMassStorageFile);
+   LocalBootOption[0].LoadAttribute = LOAD_OPTION_HIDDEN;
+ 
++  // Add Charger Mode Boot Option
++  LocalBootOption[1].AppName       = L"Charger Mode";
++  LocalBootOption[1].AppGuid       = FixedPcdGetPtr (PcdChargerModeFile);
++  LocalBootOption[1].LoadAttribute = LOAD_OPTION_HIDDEN;
++
++  // Add Reboot to Recovery (TWRP) Boot Option
++  LocalBootOption[2].AppName       = L"Reboot to Recovery (TWRP)";
++  LocalBootOption[2].AppGuid       = FixedPcdGetPtr (PcdRebootRecoveryFile);
++  LocalBootOption[2].LoadAttribute = LOAD_OPTION_HIDDEN;
++
+   // Set Boot Option Count
+-  LocalBootOptionCount = 1;
++  LocalBootOptionCount = 3;
+ 
+ exit:
+   // Pass Data
+diff --git a/Silicon/Qualcomm/QcomPkg/Library/PlatformBootOptionsLib/PlatformBootOptionsLib.inf b/Silicon/Qualcomm/QcomPkg/Library/PlatformBootOptionsLib/PlatformBootOptionsLib.inf
+index b7b601d0..f51c3ed7 100644
+--- a/Silicon/Qualcomm/QcomPkg/Library/PlatformBootOptionsLib/PlatformBootOptionsLib.inf
++++ b/Silicon/Qualcomm/QcomPkg/Library/PlatformBootOptionsLib/PlatformBootOptionsLib.inf
+@@ -21,3 +21,5 @@
+ 
+ [FixedPcd]
+   gQcomPkgTokenSpaceGuid.PcdMassStorageFile
++  gQcomPkgTokenSpaceGuid.PcdChargerModeFile
++  gQcomPkgTokenSpaceGuid.PcdRebootRecoveryFile
+diff --git a/Silicon/Qualcomm/QcomPkg/QcomPkg.dec b/Silicon/Qualcomm/QcomPkg/QcomPkg.dec
+index 3ec0e3e7..ff2864ec 100644
+--- a/Silicon/Qualcomm/QcomPkg/QcomPkg.dec
++++ b/Silicon/Qualcomm/QcomPkg/QcomPkg.dec
+@@ -74,6 +74,7 @@
+   gEfiRamPartitionProtocolGuid        = { 0x5172FFB5, 0x4253, 0x7D51, { 0xC6, 0x41, 0xA7, 0x01, 0xF9, 0x73, 0x10, 0x3C } }
+   gEfiEraseBlockProtocolGuid          = { 0x95A9A93E, 0xA86E, 0x4926, { 0xAA, 0xEF, 0x99, 0x18, 0xE7, 0x72, 0xD9, 0x87 } }
+   gEfiResetReasonProtocolGuid         = { 0xA022155A, 0x4828, 0x4535, { 0xA4, 0x99, 0x11, 0xF1, 0x52, 0x40, 0xB9, 0x1B } }
++  gQcomI2CProtocolGuid                = { 0xB27AE8B1, 0x3E10, 0x4D07, { 0xAB, 0x5C, 0xEB, 0x9A, 0x6D, 0xC6, 0xFA, 0x8F } }
+   gChargerExProtocolGuid              = { 0x6EDC8A6D, 0x2663, 0x43CD, { 0x90, 0xFF, 0x46, 0x21, 0xFF, 0xD1, 0x0D, 0xF5 } }
+   gQcomPmicPonProtocolGuid            = { 0x97044B58, 0xFEA4, 0x4AD0, { 0x9D, 0x0B, 0xE4, 0x17, 0xD6, 0x0F, 0x11, 0xA1 } }
+   gEfiLimitsProtocolGuid              = { 0x79D6C879, 0x725E, 0x489E, { 0xA0, 0xA9, 0x27, 0xEF, 0xA5, 0xDF, 0xCB, 0x35 } }
+@@ -113,4 +114,6 @@
+   #
+   # Mass Storage
+   #
++  gQcomPkgTokenSpaceGuid.PcdRebootRecoveryFile|{ 0xE2, 0xC4, 0x91, 0x7A, 0x58, 0x3B, 0x1F, 0x4D, 0x9E, 0x6A, 0x21, 0xC8, 0xB4, 0xF0, 0x5D, 0x19 }|VOID*|0x0000C303
++  gQcomPkgTokenSpaceGuid.PcdChargerModeFile|{ 0x1A, 0x2B, 0x7C, 0x4E, 0x3F, 0x8D, 0x92, 0x4A, 0xB5, 0xC1, 0x90, 0xF4, 0xE2, 0xA7, 0x6D, 0x31 }|VOID*|0x0000C302
+   gQcomPkgTokenSpaceGuid.PcdMassStorageFile|{ 0xD8, 0xEC, 0x14, 0xFB, 0x32, 0x94, 0xB8, 0x48, 0xA6, 0x92, 0xAE, 0x4B, 0xC1, 0x9D, 0x56, 0x8B }|VOID*|0x0000C301
+diff --git a/Silicon/Qualcomm/QcomPkg/QcomPkg.dsc.inc b/Silicon/Qualcomm/QcomPkg/QcomPkg.dsc.inc
+index 5a213674..6a9f726e 100644
+--- a/Silicon/Qualcomm/QcomPkg/QcomPkg.dsc.inc
++++ b/Silicon/Qualcomm/QcomPkg/QcomPkg.dsc.inc
+@@ -58,3 +58,5 @@
+   # Custom Apps
+   #
+   QcomPkg/Applications/MassStorage/MassStorage.inf
++  QcomPkg/Applications/ChargerMode/ChargerMode.inf
++  QcomPkg/Applications/RebootRecovery/RebootRecovery.inf
+diff --git a/Silicon/Silicium/OpensslPkg/Library/OpensslLib/openssl b/Silicon/Silicium/OpensslPkg/Library/OpensslLib/openssl
+--- a/Silicon/Silicium/OpensslPkg/Library/OpensslLib/openssl
++++ b/Silicon/Silicium/OpensslPkg/Library/OpensslLib/openssl
+@@ -1 +1 @@
+-Subproject commit 67b5686b4419b4cb8caa502711c41815f5279751
++Subproject commit 67b5686b4419b4cb8caa502711c41815f5279751-dirty

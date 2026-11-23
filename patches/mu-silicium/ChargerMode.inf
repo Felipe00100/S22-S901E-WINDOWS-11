@@ -1,0 +1,30 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = ChargerMode
+  FILE_GUID                      = 4E7C2B1A-8D3F-4A92-B5C1-90F4E2A76D31
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = ChargerModeEntry
+
+[Sources]
+  ChargerMode.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  SiliciumPkg/SiliciumPkg.dec
+  QcomPkg/QcomPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  IoLib
+  PrintLib
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  UefiLib
+
+[Protocols]
+  gChargerExProtocolGuid
+  gQcomI2CProtocolGuid

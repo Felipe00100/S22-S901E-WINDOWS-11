@@ -1,0 +1,58 @@
+;
+; Maxim MAX77705 USB-C / USB 3.0 SuperSpeed / Dual-Role / USB-PD / DP Alt-Mode Driver
+; Samsung Galaxy S22 5G (SM-S901E, r0q) - Windows 11 ARM64
+;
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = System
+ClassGuid   = {4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider    = %ManufacturerName%
+CatalogFile = max77705usbc.cat
+DriverVer   = 11/21/2026,1.0.0.0
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+max77705usbc.sys = 1
+
+[Manufacturer]
+%ManufacturerName% = Standard,NTARM64.10.0...16299
+
+[Standard.NTARM64.10.0...16299]
+%UsbC.DeviceDesc%  = UsbC_Install, ACPI\MAXM7706
+%UsbC.VirtualDesc% = UsbC_Install, ROOT\MAXM7706
+
+[UsbC_Install.NT]
+CopyFiles = UsbC_CopyFiles
+
+[UsbC_CopyFiles]
+max77705usbc.sys
+
+[UsbC_Install.NT.Services]
+AddService = max77705usbc, 0x00000002, UsbC_Service_Inst
+
+[UsbC_Service_Inst]
+DisplayName    = %UsbC.ServiceDesc%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %13%\max77705usbc.sys
+
+[UsbC_Install.NT.Wdf]
+KmdfService = max77705usbc, UsbC_WdfSect
+
+[UsbC_WdfSect]
+KmdfLibraryVersion = 1.33
+
+[Strings]
+ManufacturerName = "S22 Windows Community Project"
+DiskName         = "Galaxy S22 MAX77705 USB-C & SuperSpeed Driver Package"
+UsbC.DeviceDesc  = "Maxim MAX77705 USB-C / USB 3.0 / PD / DP Alt-Mode Controller (Galaxy S22)"
+UsbC.VirtualDesc = "Maxim MAX77705 Virtual USB-C Controller (Test Mode)"
+UsbC.ServiceDesc = "MAX77705 USB-C / QMP PHY / DWC3 Role Controller KMDF Driver"

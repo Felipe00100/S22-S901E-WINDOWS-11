@@ -1,0 +1,360 @@
+diff --git a/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.c b/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.c
+index 5bba6ea816..1455675173 100644
+--- a/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.c
++++ b/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.c
+@@ -6,6 +6,9 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
+ 
+ **/
+ 
++#include <Library/UefiRuntimeServicesTableLib.h>
++
++#include <Library/PrintLib.h>
+ #include "BootManagerMenu.h"
+ 
+ EFI_HII_HANDLE  gStringPackHandle;
+@@ -344,9 +347,9 @@ IgnoreBootOption (
+   }
+ 
+   //
+-  // Ignore the hidden/inactive boot option.
++  // Ignore "UEFI Misc Device" boot options.
+   //
+-  if (((BootOption->Attributes & LOAD_OPTION_HIDDEN) != 0) || ((BootOption->Attributes & LOAD_OPTION_ACTIVE) == 0)) {
++  if (BootOption->Description != NULL && StrnCmp (BootOption->Description, L"UEFI Misc Device", 16) == 0) {
+     return TRUE;
+   }
+ 
+@@ -379,7 +382,7 @@ InitializeBootMenuData (
+   }
+ 
+   BootMenuData->TitleToken[0] = STRING_TOKEN (STR_BOOT_POPUP_MENU_TITLE_STRING);
+-  BootMenuData->PtrTokens     = AllocateZeroPool (BootOptionCount * sizeof (EFI_STRING_ID));
++  BootMenuData->PtrTokens     = AllocateZeroPool ((BootOptionCount + 2) * sizeof (EFI_STRING_ID));
+   ASSERT (BootMenuData->PtrTokens != NULL);
+ 
+   //
+@@ -399,10 +402,19 @@ InitializeBootMenuData (
+                                             );
+   }
+ 
++  //
++  // Add Power Off Option
++  //
++  BootMenuData->PtrTokens[StrIndex++] = HiiSetString (gStringPackHandle, 0, L"Power Off", NULL);
++
++  //
++  // Add Exit Option
++  //
++  BootMenuData->PtrTokens[StrIndex++] = HiiSetString (gStringPackHandle, 0, L"Exit", NULL);
++
+   BootMenuData->ItemCount    = StrIndex;
+   BootMenuData->HelpToken[0] = STRING_TOKEN (STR_BOOT_POPUP_MENU_HELP1_STRING);
+   BootMenuData->HelpToken[1] = STRING_TOKEN (STR_BOOT_POPUP_MENU_HELP2_STRING);
+-  BootMenuData->HelpToken[2] = STRING_TOKEN (STR_BOOT_POPUP_MENU_HELP3_STRING);
+   InitializeBootMenuScreen (BootMenuData);
+   BootMenuData->SelectItem = 0;
+   return EFI_SUCCESS;
+@@ -468,7 +480,7 @@ BootMenuSelectItem (
+       BootMenuData->ScrollBarControl.LastItem  = WantSelectItem;
+     }
+ 
+-    gST->ConOut->SetAttribute (gST->ConOut, EFI_WHITE | EFI_BACKGROUND_BLUE);
++    gST->ConOut->SetAttribute (gST->ConOut, EFI_WHITE | EFI_BACKGROUND_BLACK);
+     FirstItem   = BootMenuData->ScrollBarControl.FirstItem;
+     LastItem    = BootMenuData->ScrollBarControl.LastItem;
+     TopShadeNum = 0;
+@@ -539,7 +551,7 @@ BootMenuSelectItem (
+   //
+   FirstItem = BootMenuData->ScrollBarControl.FirstItem;
+   if ((WantSelectItem != BootMenuData->SelectItem) && !RePaintItems) {
+-    gST->ConOut->SetAttribute (gST->ConOut, EFI_WHITE | EFI_BACKGROUND_BLUE);
++    gST->ConOut->SetAttribute (gST->ConOut, EFI_WHITE | EFI_BACKGROUND_BLACK);
+     String   = HiiGetString (gStringPackHandle, BootMenuData->PtrTokens[BootMenuData->SelectItem], NULL);
+     PrintCol = StartCol  + 1;
+     PrintRow = StartRow + 3 + BootMenuData->SelectItem - FirstItem;
+@@ -550,7 +562,7 @@ BootMenuSelectItem (
+   //
+   // Print want to select item
+   //
+-  gST->ConOut->SetAttribute (gST->ConOut, EFI_WHITE | EFI_BACKGROUND_BLACK);
++  gST->ConOut->SetAttribute (gST->ConOut, EFI_BLACK | EFI_BACKGROUND_LIGHTGRAY);
+   String   = HiiGetString (gStringPackHandle, BootMenuData->PtrTokens[WantSelectItem], NULL);
+   PrintCol = StartCol  + 1;
+   PrintRow = StartRow + TITLE_TOKEN_COUNT + 2 + WantSelectItem - FirstItem;
+@@ -589,7 +601,7 @@ DrawBootPopupMenu (
+   gST->ConOut->ClearScreen (gST->ConOut);
+ 
+   SavedAttribute = gST->ConOut->Mode->Attribute;
+-  gST->ConOut->SetAttribute (gST->ConOut, EFI_WHITE | EFI_BACKGROUND_BLUE);
++  gST->ConOut->SetAttribute (gST->ConOut, EFI_WHITE | EFI_BACKGROUND_BLACK);
+   Width              = BootMenuData->MenuScreen.Width;
+   StartCol           = BootMenuData->MenuScreen.StartCol;
+   StartRow           = BootMenuData->MenuScreen.StartRow;
+@@ -754,6 +766,16 @@ BootFromSelectOption (
+       break;
+     }
+   }
++
++  // Power Off
++  if (SelectItem == ItemNum) {
++    gRT->ResetSystem (EfiResetShutdown, EFI_SUCCESS, 0, NULL);
++  }
++
++  // Exit
++  if (SelectItem == ItemNum + 1) {
++    gBS->Exit (gImageHandle, EFI_SUCCESS, 0, NULL);
++  }
+ }
+ 
+ /**
+@@ -986,6 +1008,48 @@ BdsSetConsoleMode (
+   @retval  EFI_NOT_FOUND        User select to enter setup or can not find boot option
+ 
+ **/
++#define AUTO_BOOT_TIMEOUT_SECONDS  15
++#define TIMER_TICK_100NS           1000000ULL  // 100 ms
++#define TICKS_PER_SECOND           10
++#define COMBO_WINDOW_TICKS         4           // 400 ms window for Vol+ & Vol- combo
++
++STATIC
++VOID
++DrawAutoBootCountdown (
++  IN BOOT_MENU_POPUP_DATA  *BootMenuData,
++  IN UINTN                 SecondsLeft
++  )
++{
++  CHAR16  StatusLine[80];
++  UINTN   SavedAttribute;
++  UINTN   Row;
++  UINTN   Col;
++  UINTN   MaxCol;
++  UINTN   MaxRow;
++  UINTN   Len;
++
++  gST->ConOut->QueryMode (gST->ConOut, gST->ConOut->Mode->Mode, &MaxCol, &MaxRow);
++  Row = BootMenuData->MenuScreen.StartRow + BootMenuData->MenuScreen.Height;
++  if (Row >= MaxRow) {
++    Row = MaxRow - 1;
++  }
++
++  UnicodeSPrint (
++    StatusLine,
++    sizeof (StatusLine),
++    L"  Auto-boot in %02us | Vol+/Vol-: Move | Vol+ & Vol-: Enter  ",
++    (UINT32)SecondsLeft
++    );
++
++  Len = StrLen (StatusLine);
++  Col = (MaxCol > Len) ? ((MaxCol - Len) / 2) : 0;
++
++  SavedAttribute = gST->ConOut->Mode->Attribute;
++  gST->ConOut->SetAttribute (gST->ConOut, EFI_YELLOW | EFI_BACKGROUND_BLACK);
++  PrintStringAt (Col, Row, StatusLine);
++  gST->ConOut->SetAttribute (gST->ConOut, SavedAttribute);
++}
++
+ EFI_STATUS
+ EFIAPI
+ BootManagerMenuEntry (
+@@ -1107,59 +1171,149 @@ BootManagerMenuEntry (
+   DrawBootPopupMenu (&BootMenuData);
+ 
+   //
+-  // check user input to determine want to re-draw or boot from user selected item
++  // Check user input with 15s auto-boot timer and Vol+ & Vol- combo as Enter
+   //
+-  ExitApplication = FALSE;
+-  while (!ExitApplication) {
+-    gBS->WaitForEvent (1, &gST->ConIn->WaitForKey, &Index);
+-    Status = gST->ConIn->ReadKeyStroke (gST->ConIn, &Key);
++  {
++    EFI_EVENT  TimerEvent;
++    EFI_EVENT  WaitList[2];
++    UINTN      CountdownSeconds;
++    UINTN      TickCounter;
++    UINTN      TotalTicks;
++    UINT16     LastScanCode;
++    UINTN      LastKeyTick;
++    UINTN      PreComboItem;
++    BOOLEAN    ExecuteSelected;
++
++    TimerEvent       = NULL;
++    CountdownSeconds = AUTO_BOOT_TIMEOUT_SECONDS;
++    TickCounter      = 0;
++    TotalTicks       = 0;
++    LastScanCode     = SCAN_NULL;
++    LastKeyTick      = 0;
++    PreComboItem     = BootMenuData.SelectItem;
++    ExecuteSelected  = FALSE;
++
++    Status = gBS->CreateEvent (EVT_TIMER, TPL_CALLBACK, NULL, NULL, &TimerEvent);
+     if (!EFI_ERROR (Status)) {
+-      switch (Key.UnicodeChar) {
+-        case CHAR_NULL:
+-          switch (Key.ScanCode) {
+-            case SCAN_UP:
+-              SelectItem = BootMenuData.SelectItem == 0 ? BootMenuData.ItemCount - 1 : BootMenuData.SelectItem - 1;
+-              BootMenuSelectItem (SelectItem, &BootMenuData);
+-              break;
++      gBS->SetTimer (TimerEvent, TimerPeriodic, TIMER_TICK_100NS);
++    }
++
++    DrawAutoBootCountdown (&BootMenuData, CountdownSeconds);
++
++    ExitApplication = FALSE;
++    while (!ExitApplication) {
++      if (TimerEvent != NULL) {
++        WaitList[0] = gST->ConIn->WaitForKey;
++        WaitList[1] = TimerEvent;
++        gBS->WaitForEvent (2, WaitList, &Index);
++      } else {
++        gBS->WaitForEvent (1, &gST->ConIn->WaitForKey, &Index);
++      }
++
++      if (Index == 1) {
++        TotalTicks++;
++        TickCounter++;
++        if (TickCounter >= TICKS_PER_SECOND) {
++          TickCounter = 0;
++          if (CountdownSeconds > 0) {
++            CountdownSeconds--;
++          }
++
++          DrawAutoBootCountdown (&BootMenuData, CountdownSeconds);
++          if (CountdownSeconds == 0) {
++            ExecuteSelected = TRUE;
++          }
++        }
++      } else {
++        Status = gST->ConIn->ReadKeyStroke (gST->ConIn, &Key);
++        if (!EFI_ERROR (Status)) {
++          switch (Key.UnicodeChar) {
++            case CHAR_NULL:
++              switch (Key.ScanCode) {
++                case SCAN_UP:
++                case SCAN_DOWN:
++                  if ((LastScanCode != SCAN_NULL) &&
++                      (LastScanCode != Key.ScanCode) &&
++                      ((TotalTicks - LastKeyTick) <= COMBO_WINDOW_TICKS))
++                  {
++                    // Vol+ and Vol- pressed together -> confirm selected option
++                    BootMenuSelectItem (PreComboItem, &BootMenuData);
++                    LastScanCode    = SCAN_NULL;
++                    ExecuteSelected = TRUE;
++                  } else {
++                    PreComboItem = BootMenuData.SelectItem;
++                    LastScanCode = Key.ScanCode;
++                    LastKeyTick  = TotalTicks;
++                    if (Key.ScanCode == SCAN_UP) {
++                      SelectItem = BootMenuData.SelectItem == 0 ? BootMenuData.ItemCount - 1 : BootMenuData.SelectItem - 1;
++                    } else {
++                      SelectItem = BootMenuData.SelectItem == BootMenuData.ItemCount - 1 ? 0 : BootMenuData.SelectItem + 1;
++                    }
++
++                    BootMenuSelectItem (SelectItem, &BootMenuData);
++                    CountdownSeconds = AUTO_BOOT_TIMEOUT_SECONDS;
++                    TickCounter      = 0;
++                    DrawAutoBootCountdown (&BootMenuData, CountdownSeconds);
++                  }
++
++                  break;
++
++                case SCAN_ESC:
++                  gST->ConOut->ClearScreen (gST->ConOut);
++                  ExitApplication = TRUE;
++                  //
++                  // Set boot resolution for normal boot
++                  //
++                  BdsSetConsoleMode (FALSE);
++                  break;
++
++                default:
++                  break;
++              }
+ 
+-            case SCAN_DOWN:
+-              SelectItem = BootMenuData.SelectItem == BootMenuData.ItemCount - 1 ? 0 : BootMenuData.SelectItem + 1;
+-              BootMenuSelectItem (SelectItem, &BootMenuData);
+               break;
+ 
+-            case SCAN_ESC:
+-              gST->ConOut->ClearScreen (gST->ConOut);
+-              ExitApplication = TRUE;
+-              //
+-              // Set boot resolution for normal boot
+-              //
+-              BdsSetConsoleMode (FALSE);
++            case CHAR_CARRIAGE_RETURN:
++              ExecuteSelected = TRUE;
+               break;
+ 
+             default:
+               break;
+           }
++        }
++      }
+ 
+-          break;
+-
+-        case CHAR_CARRIAGE_RETURN:
+-          gST->ConOut->ClearScreen (gST->ConOut);
+-          //
+-          // Set boot resolution for normal boot
+-          //
+-          BdsSetConsoleMode (FALSE);
+-          BootFromSelectOption (BootOption, BootOptionCount, BootMenuData.SelectItem);
+-          //
+-          // Back to boot manager menu again, set back to setup resolution
+-          //
+-          BdsSetConsoleMode (TRUE);
+-          DrawBootPopupMenu (&BootMenuData);
+-          break;
++      if (ExecuteSelected) {
++        ExecuteSelected = FALSE;
++        if (TimerEvent != NULL) {
++          gBS->SetTimer (TimerEvent, TimerCancel, 0);
++        }
+ 
+-        default:
+-          break;
++        gST->ConOut->ClearScreen (gST->ConOut);
++        //
++        // Set boot resolution for normal boot
++        //
++        BdsSetConsoleMode (FALSE);
++        BootFromSelectOption (BootOption, BootOptionCount, BootMenuData.SelectItem);
++        //
++        // Back to boot manager menu again, set back to setup resolution
++        //
++        BdsSetConsoleMode (TRUE);
++        DrawBootPopupMenu (&BootMenuData);
++        CountdownSeconds = AUTO_BOOT_TIMEOUT_SECONDS;
++        TickCounter      = 0;
++        LastScanCode     = SCAN_NULL;
++        DrawAutoBootCountdown (&BootMenuData, CountdownSeconds);
++        if (TimerEvent != NULL) {
++          gBS->SetTimer (TimerEvent, TimerPeriodic, TIMER_TICK_100NS);
++        }
+       }
+     }
++
++    if (TimerEvent != NULL) {
++      gBS->SetTimer (TimerEvent, TimerCancel, 0);
++      gBS->CloseEvent (TimerEvent);
++    }
+   }
+ 
+   EfiBootManagerFreeLoadOptions (BootOption, BootOptionCount);
+diff --git a/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.h b/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.h
+index 697a44aeae..8b45ad193d 100644
+--- a/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.h
++++ b/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenu.h
+@@ -22,7 +22,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
+ #include <Protocol/BootLogo.h>
+ 
+ #define TITLE_TOKEN_COUNT  1
+-#define HELP_TOKEN_COUNT   3
++#define HELP_TOKEN_COUNT   2
+ 
+ typedef struct _BOOT_MENU_SCREEN {
+   UINTN    StartCol;

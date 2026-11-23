@@ -1,0 +1,66 @@
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = HIDClass
+ClassGuid   = {745a17a0-74d3-11d0-b6fe-00a0c90f57da}
+Provider    = %ManufacturerName%
+CatalogFile = fts2ba61y.cat
+DriverVer   = 11/22/2026,1.0.1.0
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+fts2ba61y.sys = 1
+
+[Manufacturer]
+%ManufacturerName% = Standard,NTARM64.10.0...16299
+
+[Standard.NTARM64.10.0...16299]
+%FtsTouch.DeviceDesc%  = FtsTouch_Install, ACPI\STMT0001
+%FtsTouch.DeviceDesc%  = FtsTouch_Install, ACPI\VEN_STMT&DEV_0001
+%FtsTouch.VirtualDesc% = FtsTouch_Install, ROOT\STMT0001
+
+[FtsTouch_Install.NT]
+Include   = mshidkmdf.inf
+Needs     = MsHidKmdf.NT
+CopyFiles = FtsTouch_CopyFiles
+
+[FtsTouch_CopyFiles]
+fts2ba61y.sys
+
+[FtsTouch_Install.NT.HW]
+Include = mshidkmdf.inf
+Needs   = MsHidKmdf.NT.HW
+AddReg  = FtsTouch_HW_AddReg
+
+[FtsTouch_HW_AddReg]
+HKR,,"LowerFilters",0x00010000,"fts2ba61y"
+
+[FtsTouch_Install.NT.Services]
+Include    = mshidkmdf.inf
+Needs      = MsHidKmdf.NT.Services
+AddService = fts2ba61y,, fts2ba61y_Service_Inst
+
+[fts2ba61y_Service_Inst]
+DisplayName    = %FtsTouch.ServiceDesc%
+ServiceType    = 1
+StartType      = 3
+ErrorControl   = 1
+ServiceBinary  = %13%\fts2ba61y.sys
+
+[FtsTouch_Install.NT.Wdf]
+KmdfService = fts2ba61y, FtsTouch_WdfSect
+
+[FtsTouch_WdfSect]
+KmdfLibraryVersion = 1.33
+
+[Strings]
+ManufacturerName     = "S22 Windows Community Project"
+DiskName             = "Galaxy S22 STM FTS2BA61Y Touchscreen Driver Disk"
+FtsTouch.DeviceDesc  = "STMicroelectronics FTS2BA61Y Touchscreen (Galaxy S22 r0q)"
+FtsTouch.VirtualDesc = "STMicroelectronics FTS2BA61Y Virtual Touchscreen (Test Mode)"
+FtsTouch.ServiceDesc = "STM FTS2BA61Y KMDF HID Minidriver"

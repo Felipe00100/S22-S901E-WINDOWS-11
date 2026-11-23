@@ -1,0 +1,54 @@
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = Battery
+ClassGuid   = {72631e54-78a4-11d0-bcf7-00aa00b7b32a}
+Provider    = %ManufacturerName%
+CatalogFile = max77705batt.cat
+DriverVer   = 11/21/2026,1.0.0.0
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+max77705batt.sys = 1
+
+[Manufacturer]
+%ManufacturerName% = Standard,NTARM64.10.0...16299
+
+[Standard.NTARM64.10.0...16299]
+%MaxBatt.DeviceDesc%  = MaxBatt_Install, ACPI\MAXM7705
+%MaxBatt.DeviceDesc%  = MaxBatt_Install, ACPI\VEN_MAXM&DEV_7705
+%MaxBatt.VirtualDesc% = MaxBatt_Install, ROOT\MAXM7705
+
+[MaxBatt_Install.NT]
+CopyFiles = MaxBatt_CopyFiles
+
+[MaxBatt_CopyFiles]
+max77705batt.sys
+
+[MaxBatt_Install.NT.Services]
+AddService = max77705batt, 0x00000002, max77705batt_Service_Inst
+
+[max77705batt_Service_Inst]
+DisplayName    = %MaxBatt.ServiceDesc%
+ServiceType    = 1
+StartType      = 3
+ErrorControl   = 1
+ServiceBinary  = %13%\max77705batt.sys
+
+[MaxBatt_Install.NT.Wdf]
+KmdfService = max77705batt, MaxBatt_WdfSect
+
+[MaxBatt_WdfSect]
+KmdfLibraryVersion = 1.33
+
+[Strings]
+ManufacturerName     = "S22 Windows Community Project"
+DiskName             = "Galaxy S22 Maxim MAX77705 Battery Driver Disk"
+MaxBatt.DeviceDesc   = "Maxim MAX77705 Battery & Charger (Galaxy S22 r0q)"
+MaxBatt.VirtualDesc  = "Maxim MAX77705 Virtual Battery (Test Mode)"
+MaxBatt.ServiceDesc  = "MAX77705 KMDF Battery Miniclass Driver"

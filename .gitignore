@@ -1,0 +1,44 @@
+# ==============================================================================
+# Proprietary Qualcomm / Samsung / Microsoft binaries — NEVER commit to GitHub!
+# ==============================================================================
+S901E Drivers/
+*.iso
+*.wim
+*.esd
+*.img
+*.mbn
+*.elf
+*.bin
+*.msc
+*.e0*
+*.e1*
+*.e2*
+*.e3*
+*.e4*
+*.e8*
+qcwlan*.sys
+qc*.sys
+
+# Local test-signing certificates, private keys, and per-machine catalogs
+*.cer
+*.pfx
+*.pvk
+*.key
+*.cat
+
+# Build artifacts, logs, dumps, and temporary files
+drivers/**/ARM64/
+drivers/**/x64/
+*.FileListAbsolute.txt
+*.obj
+*.pdb
+*.lib
+*.exp
+*.log
+*.evtx
+*.dmp
+*.orig
+*.bak
+__pycache__/
+.DS_Store
+Thumbs.db
