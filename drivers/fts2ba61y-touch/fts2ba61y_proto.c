@@ -477,55 +477,69 @@ FtsPollEvents(
 
     WdfSpinLockAcquire(DevCtx->StateLock);
 
-    for (i = 0; i <= LeftEvents; i++) {
-        UCHAR *Ev = Buffer + (i * FTS2BA61Y_EVENT_BUFF_SIZE);
-        UCHAR EventId = Ev[0] & 0x03;
+    {
+        USHORT PressedInBurstMask = 0;
 
-        if (EventId == FTS2BA61Y_COORDINATE_EVENT) {
-            UCHAR Tid = (Ev[0] >> 2) & 0x0F;
-            UCHAR Action = (Ev[0] >> 6) & 0x03;
+        for (i = 0; i <= LeftEvents; i++) {
+            UCHAR *Ev = Buffer + (i * FTS2BA61Y_EVENT_BUFF_SIZE);
+            UCHAR EventId = Ev[0] & 0x03;
 
-            if (Tid < FTS_MAX_CONTACTS) {
-                if (Action == FTS2BA61Y_ACTION_PRESS || Action == FTS2BA61Y_ACTION_MOVE) {
-                    // Verified verbatim against Linux fts2ba61y.c (TTYPE_3_2 = Ev[6][7:6], TTYPE_1_0 = Ev[7][1:0])
-                    UCHAR TType = (UCHAR)((((Ev[6] >> 6) & 0x03) << 2) | (Ev[7] & 0x03));
-                    if (TType == FTS2BA61Y_TOUCHTYPE_NORMAL ||
-                        TType == FTS2BA61Y_TOUCHTYPE_PALM ||
-                        TType == FTS2BA61Y_TOUCHTYPE_WET ||
-                        TType == FTS2BA61Y_TOUCHTYPE_GLOVE)
-                    {
-                        USHORT RawX = (USHORT)(((USHORT)Ev[1] << 4) | ((Ev[3] >> 4) & 0x0F));
-                        USHORT RawY = (USHORT)(((USHORT)Ev[2] << 4) | (Ev[3] & 0x0F));
-                        ULONG ScaledX = (DevCtx->MaxX > 0)
-                            ? (((ULONG)RawX * FTS_LOGICAL_MAX_X) / DevCtx->MaxX)
-                            : (ULONG)RawX;
-                        ULONG ScaledY = (DevCtx->MaxY > 0)
-                            ? (((ULONG)RawY * FTS_LOGICAL_MAX_Y) / DevCtx->MaxY)
-                            : (ULONG)RawY;
-                        UCHAR RawPress = Ev[6] & 0x3F;
+            if (EventId == FTS2BA61Y_COORDINATE_EVENT) {
+                UCHAR Tid = (Ev[0] >> 2) & 0x0F;
+                UCHAR Action = (Ev[0] >> 6) & 0x03;
 
-                        // Clamp to HID Logical Maximum [0..4095] (T-2)
-                        if (ScaledX > FTS_LOGICAL_MAX_X) {
-                            ScaledX = FTS_LOGICAL_MAX_X;
+                if (Tid < FTS_MAX_CONTACTS) {
+                    if (Action == FTS2BA61Y_ACTION_PRESS || Action == FTS2BA61Y_ACTION_MOVE) {
+                        // Verified verbatim against Linux fts2ba61y.c (TTYPE_3_2 = Ev[6][7:6], TTYPE_1_0 = Ev[7][1:0])
+                        UCHAR TType = (UCHAR)((((Ev[6] >> 6) & 0x03) << 2) | (Ev[7] & 0x03));
+                        if (TType == FTS2BA61Y_TOUCHTYPE_NORMAL ||
+                            TType == FTS2BA61Y_TOUCHTYPE_PALM ||
+                            TType == FTS2BA61Y_TOUCHTYPE_WET ||
+                            TType == FTS2BA61Y_TOUCHTYPE_GLOVE)
+                        {
+                            USHORT RawX = (USHORT)(((USHORT)Ev[1] << 4) | ((Ev[3] >> 4) & 0x0F));
+                            USHORT RawY = (USHORT)(((USHORT)Ev[2] << 4) | (Ev[3] & 0x0F));
+                            ULONG ScaledX = (DevCtx->MaxX > 0)
+                                ? (((ULONG)RawX * FTS_LOGICAL_MAX_X) / DevCtx->MaxX)
+                                : (ULONG)RawX;
+                            ULONG ScaledY = (DevCtx->MaxY > 0)
+                                ? (((ULONG)RawY * FTS_LOGICAL_MAX_Y) / DevCtx->MaxY)
+                                : (ULONG)RawY;
+                            UCHAR RawPress = Ev[6] & 0x3F;
+
+                            // Clamp to HID Logical Maximum [0..4095] (T-2)
+                            if (ScaledX > FTS_LOGICAL_MAX_X) {
+                                ScaledX = FTS_LOGICAL_MAX_X;
+                            }
+                            if (ScaledY > FTS_LOGICAL_MAX_Y) {
+                                ScaledY = FTS_LOGICAL_MAX_Y;
+                            }
+
+                            if (!DevCtx->Slots[Tid].Active) {
+                                PressedInBurstMask |= (USHORT)(1U << Tid);
+                            }
+                            DevCtx->Slots[Tid].Active         = TRUE;
+                            DevCtx->Slots[Tid].ReleasePending = FALSE;
+                            DevCtx->Slots[Tid].Confident      = (TType != FTS2BA61Y_TOUCHTYPE_PALM);
+                            DevCtx->Slots[Tid].X              = (USHORT)ScaledX;
+                            DevCtx->Slots[Tid].Y              = (USHORT)ScaledY;
+                            DevCtx->Slots[Tid].Pressure       = (RawPress > 0) ? RawPress : 1;
+                            *HasUpdate = TRUE;
                         }
-                        if (ScaledY > FTS_LOGICAL_MAX_Y) {
-                            ScaledY = FTS_LOGICAL_MAX_Y;
+                    } else if (Action == FTS2BA61Y_ACTION_RELEASE) {
+                        if (DevCtx->Slots[Tid].Active) {
+                            // If PRESS and RELEASE arrive in the same SPI burst, flush the PRESS
+                            // report into the FIFO first so fast taps are never collapsed/lost (T-9).
+                            if ((PressedInBurstMask & (USHORT)(1U << Tid)) != 0) {
+                                DevCtx->ScanTime = FtsQueryScanTime100Us(DevCtx);
+                                FtsBuildAndEnqueueReportLocked(DevCtx);
+                                PressedInBurstMask &= (USHORT)~(1U << Tid);
+                            }
+                            DevCtx->Slots[Tid].Active         = FALSE;
+                            DevCtx->Slots[Tid].ReleasePending = TRUE;
+                            DevCtx->Slots[Tid].Pressure       = 0;
+                            *HasUpdate = TRUE;
                         }
-
-                        DevCtx->Slots[Tid].Active         = TRUE;
-                        DevCtx->Slots[Tid].ReleasePending = FALSE;
-                        DevCtx->Slots[Tid].Confident      = (TType != FTS2BA61Y_TOUCHTYPE_PALM);
-                        DevCtx->Slots[Tid].X              = (USHORT)ScaledX;
-                        DevCtx->Slots[Tid].Y              = (USHORT)ScaledY;
-                        DevCtx->Slots[Tid].Pressure       = (RawPress > 0) ? RawPress : 1;
-                        *HasUpdate = TRUE;
-                    }
-                } else if (Action == FTS2BA61Y_ACTION_RELEASE) {
-                    if (DevCtx->Slots[Tid].Active) {
-                        DevCtx->Slots[Tid].Active         = FALSE;
-                        DevCtx->Slots[Tid].ReleasePending = TRUE;
-                        DevCtx->Slots[Tid].Pressure       = 0;
-                        *HasUpdate = TRUE;
                     }
                 }
             }

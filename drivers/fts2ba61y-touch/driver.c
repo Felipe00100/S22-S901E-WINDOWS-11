@@ -136,20 +136,25 @@ FtsCompletePendingReadReport(
     FTS_HID_TOUCH_REPORT Report;
 
     for (;;) {
-        if (!FtsDequeueHidReport(DevCtx, &Report)) {
+        BOOLEAN HasReport;
+
+        WdfSpinLockAcquire(DevCtx->StateLock);
+        HasReport = (DevCtx->ReportCount > 0);
+        WdfSpinLockRelease(DevCtx->StateLock);
+        if (!HasReport) {
             break;
         }
 
         Status = WdfIoQueueRetrieveNextRequest(DevCtx->ReadReportQueue, &Request);
         if (!NT_SUCCESS(Status)) {
-            // No pending HID read IRP yet; re-queue report at head so quick tap is not lost
-            WdfSpinLockAcquire(DevCtx->StateLock);
-            if (DevCtx->ReportCount < FTS_REPORT_QUEUE_SIZE) {
-                DevCtx->ReportHead = (DevCtx->ReportHead + FTS_REPORT_QUEUE_SIZE - 1U) % FTS_REPORT_QUEUE_SIZE;
-                DevCtx->ReportQueue[DevCtx->ReportHead] = Report;
-                DevCtx->ReportCount++;
+            break;
+        }
+
+        if (!FtsDequeueHidReport(DevCtx, &Report)) {
+            // Concurrent consumer drained the queue; re-park IRP cleanly
+            if (!NT_SUCCESS(WdfRequestForwardToIoQueue(Request, DevCtx->ReadReportQueue))) {
+                WdfRequestComplete(Request, STATUS_CANCELLED);
             }
-            WdfSpinLockRelease(DevCtx->StateLock);
             break;
         }
 
