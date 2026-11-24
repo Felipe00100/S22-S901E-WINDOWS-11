@@ -8,7 +8,7 @@ Class       = Display
 ClassGuid   = {4d36e968-e325-11ce-bfc1-08002be10318}
 Provider    = %ManufacturerName%
 CatalogFile = adreno730_wddm.cat
-DriverVer   = 11/24/2026,1.0.0.23
+DriverVer   = 11/24/2026,1.0.0.24
 PnpLockdown = 1
 
 [SourceDisksNames]
@@ -40,7 +40,8 @@ adreno730_wddm.sys
 adreno730_d3d12.dll
 
 [Adreno730_AddReg]
-HKR,,StartGpu,%REG_DWORD%,0
+HKR,,StartGpu,%REG_DWORD%,1
+HKR,,BootInProgress,%REG_DWORD%,0
 HKR,,UseSmmu,%REG_DWORD%,1
 HKR,,UseDefaultAddresses,%REG_DWORD%,1
 HKR,,UserModeDriverName,%REG_MULTI_SZ%,"adreno730_d3d12.dll","adreno730_d3d12.dll","adreno730_d3d12.dll","adreno730_d3d12.dll"

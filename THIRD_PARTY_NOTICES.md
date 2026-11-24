@@ -20,12 +20,15 @@ The following components are 100% original works licensed under the [MIT License
   - `Copyright (c) 2026 Adreno 730 WOA contributors` — base WDDM miniport, D3D12 UMD skeleton, and common GPU/PM4/HFI/SMMU modules.
   - `freedreno` contributors (MIT) — numeric register offsets and PM4 definitions in `include/adreno/a730_regs.h` generated from the MIT-licensed `freedreno` XML register database.
 
-## 3. Mesa 3D / Freedreno / Turnip (`mesa-turnip-woa`, MIT License)
-- **Paths**: `patches/mesa-turnip-woa/mesa-turnip-win-arm64.patch`, `prebuilt/Adreno730-GPU/vulkan_freedreno.dll`
+## 3. Mesa 3D / Freedreno / Turnip & Zink (`mesa-turnip-woa`, MIT License)
+- **Paths**: `patches/mesa-turnip-woa/mesa-turnip-win-arm64.patch`, `prebuilt/Adreno730-GPU/{vulkan_freedreno.dll, opengl32.dll, libgallium_wgl.dll}`
 - **Base Sources**:
-  - [Mesa 3D / Freedreno / Turnip](https://gitlab.freedesktop.org/mesa/mesa) (Mesa 26.1.0, MIT License)
+  - [Mesa 3D / Freedreno / Turnip / Gallium Zink](https://gitlab.freedesktop.org/mesa/mesa) (Mesa 26.1.0, MIT License)
   - [`arehnman/virtio-win-mesa`](https://github.com/arehnman/virtio-win-mesa) (commit `76c095b`, MIT License)
-- **License**: MIT License (see [`patches/mesa-turnip-woa/LICENSE`](patches/mesa-turnip-woa/LICENSE)). `prebuilt/Adreno730-GPU/vulkan_freedreno.dll` is compiled strictly from these MIT open-source sources; no Microsoft VC++ CRT DLLs are bundled.
+- **License**: MIT License (see [`patches/mesa-turnip-woa/LICENSE`](patches/mesa-turnip-woa/LICENSE)). All prebuilt DLLs are compiled strictly from these MIT open-source sources; no Microsoft VC++ CRT DLLs are bundled.
+
+## 3b. DXVK ARM64 (DirectX 8/9/10/11 over Vulkan, zlib License — Downloaded on Demand)
+- `scripts/install_adreno730_gpu.ps1 -InstallDXVK` optionally downloads the official MSYS2 `clangarm64` build of [doitsujin/dxvk](https://github.com/doitsujin/dxvk) (`mingw-w64-clang-aarch64-dxvk`, zlib/libpng license) directly from `https://repo.msys2.org/mingw/clangarm64/` at install time; DXVK binaries are not committed to this repository.
 
 ## 4. Project-Silicium (`Mu-Silicium` & `Silicium-ACPI`) / TianoCore EDK2 (BSD-2-Clause-Patent)
 Patches and UEFI source modifications in `patches/mu-silicium/` and ACPI table overrides in `acpi/` extend:

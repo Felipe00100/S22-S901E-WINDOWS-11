@@ -260,6 +260,31 @@ static ULONG HwRegDword(const UNICODE_STRING *dev_key, PCWSTR value_name,
     return default_value;
 }
 
+static void HwRegSetSvcDword(PCWSTR value_name, ULONG value)
+{
+    UNICODE_STRING svc_params;
+    UNICODE_STRING name;
+    OBJECT_ATTRIBUTES attr;
+    HANDLE key = NULL;
+    ULONG disp = 0;
+
+    if (!value_name || KeGetCurrentIrql() != PASSIVE_LEVEL)
+        return;
+    RtlInitUnicodeString(
+        &svc_params,
+        L"\\Registry\\Machine\\System\\CurrentControlSet\\Services\\adreno730_wddm\\Parameters");
+    InitializeObjectAttributes(&attr, &svc_params,
+                               OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL,
+                               NULL);
+    if (!NT_SUCCESS(ZwCreateKey(&key, KEY_WRITE, &attr, 0, NULL,
+                                REG_OPTION_NON_VOLATILE, &disp)))
+        return;
+    RtlInitUnicodeString(&name, value_name);
+    (void)ZwSetValueKey(key, &name, 0, REG_DWORD, &value, sizeof(value));
+    (void)ZwFlushKey(key);
+    ZwClose(key);
+}
+
 static NTSTATUS HwReadFile(const wchar_t *name, uint8_t **data,
                            uint32_t *size)
 {
@@ -270,20 +295,27 @@ static NTSTATUS HwReadFile(const wchar_t *name, uint8_t **data,
     wchar_t full[260];
     uint8_t *buf;
     uint32_t total = 0;
-    NTSTATUS status;
+    NTSTATUS status = STATUS_OBJECT_NAME_NOT_FOUND;
+    static const wchar_t *kSearchFmt[2] = {
+        L"\\SystemRoot\\System32\\drivers\\qcom\\%s",
+        L"\\SystemRoot\\System32\\drivers\\%s",
+    };
 
-    RtlStringCchPrintfW(full, ADRENO_ARRAY_SIZE(full),
-                        L"\\SystemRoot\\System32\\drivers\\%s", name);
-    RtlInitUnicodeString(&path, full);
-    InitializeObjectAttributes(&attr, &path,
-                               OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL,
-                               NULL);
-    status = ZwCreateFile(&handle, GENERIC_READ | SYNCHRONIZE, &attr, &iosb,
-                          NULL, FILE_ATTRIBUTE_NORMAL,
-                          FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_OPEN,
-                          FILE_NON_DIRECTORY_FILE |
-                              FILE_SYNCHRONOUS_IO_NONALERT,
-                          NULL, 0);
+    for (ULONG i = 0; i < 2; i++) {
+        RtlStringCchPrintfW(full, ADRENO_ARRAY_SIZE(full), kSearchFmt[i], name);
+        RtlInitUnicodeString(&path, full);
+        InitializeObjectAttributes(&attr, &path,
+                                   OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
+                                   NULL, NULL);
+        status = ZwCreateFile(&handle, GENERIC_READ | SYNCHRONIZE, &attr, &iosb,
+                              NULL, FILE_ATTRIBUTE_NORMAL,
+                              FILE_SHARE_READ | FILE_SHARE_WRITE, FILE_OPEN,
+                              FILE_NON_DIRECTORY_FILE |
+                                  FILE_SYNCHRONOUS_IO_NONALERT,
+                              NULL, 0);
+        if (NT_SUCCESS(status))
+            break;
+    }
     if (!NT_SUCCESS(status)) {
         HwLog("open %ls failed 0x%x", full, status);
         return status;
@@ -1332,7 +1364,7 @@ NTSTATUS AdrenoWddmHwStart(ADRENO_WDDM_HW *hw, HANDLE device_handle,
     if (!NT_SUCCESS(status))
         HwLog("GetDeviceInformation returned 0x%x", status);
 
-    /* Safe boot gate: StartGpu defaults to 0 unless explicitly enabled */
+    /* Safe boot gate: StartGpu + anti-bootloop BootInProgress watchdog */
     start_gpu = HwRegDword(&info.DeviceRegistryPath, L"StartGpu", 0);
     HwLog("config: StartGpu=%u (reg_len=%u)", start_gpu,
           info.DeviceRegistryPath.Length);
@@ -1340,6 +1372,12 @@ NTSTATUS AdrenoWddmHwStart(ADRENO_WDDM_HW *hw, HANDLE device_handle,
         HwLog("StartGpu=0; skipping hardware boot (safe reference CP mode)");
         return STATUS_DEVICE_NOT_READY;
     }
+    if (HwRegDword(&info.DeviceRegistryPath, L"BootInProgress", 0) != 0) {
+        HwLog("WATCHDOG: previous GPU boot did not complete; skipping HW boot for safety!");
+        HwRegSetSvcDword(L"BootInProgress", 0);
+        return STATUS_DEVICE_NOT_READY;
+    }
+    HwRegSetSvcDword(L"BootInProgress", 1);
 
     HwParseResources(hw, &info, &gpu_pa, &gmu_pa, &cx_pa, &rscc_pa, &smmu_pa,
                      &gpu_size, &gmu_size, &cx_size, &rscc_size, &smmu_size);
@@ -1668,9 +1706,11 @@ NTSTATUS AdrenoWddmHwStart(ADRENO_WDDM_HW *hw, HANDLE device_handle,
 
     HwLog("hardware ready: chip 0x%08x, SMMU=%u, CP started, has_irq=%u",
           hw->gpu.chip_id, hw->smmu_ready ? 1u : 0u, hw->has_irq ? 1u : 0u);
+    HwRegSetSvcDword(L"BootInProgress", 0);
     return STATUS_SUCCESS;
 
 fail:
+    HwRegSetSvcDword(L"BootInProgress", 0);
     AdrenoWddmHwStop(hw);
     return status;
 }

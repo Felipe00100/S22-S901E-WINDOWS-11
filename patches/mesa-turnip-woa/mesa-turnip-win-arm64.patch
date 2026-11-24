@@ -11,6 +11,74 @@ index 9703852..60c0397 100644
    description : 'List of kernel-mode drivers to enable for freedreno ' +
                  'gallium and vulkan driver',
  )
+diff --git a/src/compiler/glsl/glcpp/glcpp-lex.l b/src/compiler/glsl/glcpp/glcpp-lex.l
+index 0f69715..9825842 100644
+--- a/src/compiler/glsl/glcpp/glcpp-lex.l
++++ b/src/compiler/glsl/glcpp/glcpp-lex.l
+@@ -1,4 +1,8 @@
+ %{
++#ifdef _WIN32
++#include <io.h>
++#define isatty _isatty
++#endif
+ /*
+  * Copyright © 2010 Intel Corporation
+  *
+@@ -167,6 +171,7 @@ glcpp_lex_update_state_per_token (glcpp_parser_t *parser, int token)
+ 
+ %}
+ 
++%option nounistd
+ %option bison-bridge bison-locations reentrant noyywrap
+ %option extra-type="glcpp_parser_t *"
+ %option prefix="glcpp_"
+diff --git a/src/compiler/glsl/glsl_lexer.ll b/src/compiler/glsl/glsl_lexer.ll
+index 4bc34f9..694c6bd 100644
+--- a/src/compiler/glsl/glsl_lexer.ll
++++ b/src/compiler/glsl/glsl_lexer.ll
+@@ -1,4 +1,8 @@
+ %{
++#ifdef _WIN32
++#include <io.h>
++#define isatty _isatty
++#endif
+ /*
+  * Copyright © 2008, 2009 Intel Corporation
+  *
+@@ -210,6 +214,7 @@ literal_integer(char *text, int len, struct _mesa_glsl_parse_state *state,
+ 
+ %}
+ 
++%option nounistd
+ %option bison-bridge bison-locations reentrant noyywrap
+ %option nounput noyy_top_state
+ %option never-interactive
+diff --git a/src/compiler/glsl/lower_precision.cpp b/src/compiler/glsl/lower_precision.cpp
+index 1285a7f..242053e 100644
+--- a/src/compiler/glsl/lower_precision.cpp
++++ b/src/compiler/glsl/lower_precision.cpp
+@@ -25,6 +25,13 @@
+  * \file lower_precision.cpp
+  */
+ 
++#ifdef _M_ARM64
++#define float16_t __neon_float16_t
++#include <vector>
++#undef float16_t
++#else
++#include <vector>
++#endif
+ #include "main/macros.h"
+ #include "main/consts_exts.h"
+ #include "pipe/p_screen.h"
+@@ -36,7 +43,6 @@
+ #include "util/half_float.h"
+ #include "util/set.h"
+ #include "util/hash_table.h"
+-#include <vector>
+ 
+ namespace {
+ 
 diff --git a/src/compiler/isaspec/isaspec_decode_impl.c b/src/compiler/isaspec/isaspec_decode_impl.c
 index 452a25a..5f5b268 100644
 --- a/src/compiler/isaspec/isaspec_decode_impl.c
@@ -308,7 +376,7 @@ index d8c17e6..b8e8bef 100644
    link_depends : vulkan_icd_link_depends,
    install : true,
 diff --git a/src/freedreno/vulkan/tu_clear_blit.cc b/src/freedreno/vulkan/tu_clear_blit.cc
-index 54e2fec..cc724f7 100644
+index 54e2fec..d506e6c 100644
 --- a/src/freedreno/vulkan/tu_clear_blit.cc
 +++ b/src/freedreno/vulkan/tu_clear_blit.cc
 @@ -3585,10 +3585,15 @@ tu_CmdCopyBuffer2(VkCommandBuffer commandBuffer,
@@ -343,6 +411,38 @@ index 54e2fec..cc724f7 100644
  
     bool unaligned_store = false;
     memcpy(tmp.map, pData, dataSize);
+@@ -3855,6 +3865,9 @@ tu_resolve_sysmem(struct tu_cmd_buffer *cmd,
+                   bool per_layer_rect,
+                   const VkRect2D *rect)
+ {
++   if (!src || !dst)
++      return;
++
+    assert(src->vk.format == dst->vk.format ||
+           (vk_format_is_depth_or_stencil(src->image->vk.format) &&
+            vk_format_is_depth_or_stencil(dst->image->vk.format)));
+diff --git a/src/freedreno/vulkan/tu_cmd_buffer.cc b/src/freedreno/vulkan/tu_cmd_buffer.cc
+index 00e3d9e..c944f8a 100644
+--- a/src/freedreno/vulkan/tu_cmd_buffer.cc
++++ b/src/freedreno/vulkan/tu_cmd_buffer.cc
+@@ -801,6 +801,8 @@ tu6_emit_mrt(struct tu_cmd_buffer *cmd,
+          continue;
+ 
+       const struct tu_image_view *iview = cmd->state.attachments[a];
++      if (!iview)
++         continue;
+ 
+       crb.add(RB_MRT_BUF_INFO(CHIP, remapped,
+                               .dword = iview->view.RB_MRT_BUF_INFO));
+@@ -1329,7 +1331,7 @@ use_sysmem_rendering(struct tu_cmd_buffer *cmd,
+    }
+ 
+    /* can't fit attachments into gmem */
+-   if (!cmd->state.tiling->possible) {
++   if (!cmd->state.tiling || !cmd->state.tiling->possible) {
+       cmd->state.rp.gmem_disable_reason = "Can't fit attachments into gmem";
+       return true;
+    }
 diff --git a/src/freedreno/vulkan/tu_common.h b/src/freedreno/vulkan/tu_common.h
 index d3564eb..af01f05 100644
 --- a/src/freedreno/vulkan/tu_common.h
@@ -618,8 +718,29 @@ index db9de56..91f12ab 100644
  #define TU_USE_WSI_PLATFORM
  #endif
  
+diff --git a/src/mesa/program/program_lexer.l b/src/mesa/program/program_lexer.l
+index c0e4d80..9b4e8dd 100644
+--- a/src/mesa/program/program_lexer.l
++++ b/src/mesa/program/program_lexer.l
+@@ -1,4 +1,8 @@
+ %{
++#ifdef _WIN32
++#include <io.h>
++#define isatty _isatty
++#endif
+ /*
+  * Copyright © 2009 Intel Corporation
+  *
+@@ -167,6 +171,7 @@ dot    "."[ \t]*
+ 
+ sat    (_SAT)?
+ 
++%option nounistd
+ %option prefix="_mesa_program_lexer_"
+ %option bison-bridge bison-locations reentrant noyywrap
+ %%
 diff --git a/src/util/cache_ops_aarch64.c b/src/util/cache_ops_aarch64.c
-index d56ab8a..55f2ef8 100644
+index d56ab8a..74f3655 100644
 --- a/src/util/cache_ops_aarch64.c
 +++ b/src/util/cache_ops_aarch64.c
 @@ -29,9 +29,13 @@
@@ -637,6 +758,50 @@ index d56ab8a..55f2ef8 100644
  }
  
  static uint32_t
+@@ -95,15 +99,19 @@ get_dmin_line(void)
+ static void
+ flush_l1_cacheline(UNUSED void *p)
+ {
+-   /* Clean data cache. */
++#ifndef _WIN32
++   /* Clean data cache (traps with STATUS_ILLEGAL_INSTRUCTION in EL0 on Windows ARM64). */
+    __asm volatile("dc cvac, %0" : : "r" (p) : "memory");
++#endif
+ }
+ 
+ static void
+ flush_inval_l1_cacheline(UNUSED void *p)
+ {
+-   /* Clean and Invalidate data cache, there is no separate Invalidate. */
++#ifndef _WIN32
++   /* Clean and Invalidate data cache (traps in EL0 on Windows ARM64). */
+    __asm volatile("dc civac, %0" : : "r" (p) : "memory");
++#endif
+ }
+ 
+ static void
+@@ -115,6 +123,10 @@ data_sync_bar(void)
+ void
+ util_flush_range_no_fence(void *start, size_t size)
+ {
++#ifdef _WIN32
++   (void)start; (void)size;
++   return;
++#endif
+    uintptr_t l1_cacheline_size = get_dmin_line();
+    char *p = (char *) (((uintptr_t) start) & ~(l1_cacheline_size - 1));
+    char *end = ((char *) start) + size;
+@@ -128,6 +140,10 @@ util_flush_range_no_fence(void *start, size_t size)
+ void
+ util_flush_inval_range_no_fence(void *start, size_t size)
+ {
++#ifdef _WIN32
++   (void)start; (void)size;
++   return;
++#endif
+    uintptr_t l1_cacheline_size = get_dmin_line();
+    char *p = (char *) (((uintptr_t) start) & ~(l1_cacheline_size - 1));
+    char *end = ((char *) start) + size;
 diff --git a/src/util/u_atomic.h b/src/util/u_atomic.h
 index 9f79113..a322504 100644
 --- a/src/util/u_atomic.h

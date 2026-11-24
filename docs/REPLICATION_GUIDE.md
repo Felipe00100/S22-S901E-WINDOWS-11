@@ -134,17 +134,21 @@ Restart the `Qualcomm WCN685x` device (or reboot) — **Wi-Fi 6E (5 GHz)** will 
   ```
 - Generate `adreno730_wddm.cat` with `inf2cat /driver:<dir> /os:10_VB_ARM64` and sign `adreno730_wddm.sys`, `adreno730_d3d12.dll`, `adreno730_wddm.cat`, and `vulkan_freedreno.dll` with your own local test certificate.
 
-### 6.3 Install & Activate on the S22 (Boot-Safe!)
+### 6.3 Install & Activate on the S22 (Auto-Start with Anti-Bootloop Watchdog!)
 On the S22 (Administrator PowerShell):
 ```powershell
 # 1. Create the root-enumerated WDDM adapter device once (using WDK devcon ARM64)
 devcon install .\prebuilt\Adreno730-GPU\adreno730_wddm.inf Root\Adreno730Wddm
 
-# 2. Install WDDM + Turnip Vulkan 1.4.348 ICD and start Adreno 730 live
-#    (keeps StartGpu=0 for future boots so Windows 11 stays 100% boot-safe!)
-powershell -ExecutionPolicy Bypass -File .\scripts\install_adreno730_gpu.ps1 -DriverDir .\prebuilt\Adreno730-GPU -EnableGpuNow
+# 2. Install WDDM 2.0 (v1.0.0.24, StartGpu=1 + BootInProgress watchdog),
+#    Mesa Turnip Vulkan 1.4.348, Mesa Zink OpenGL 4.6, MSYS2 ARM64 DXVK (DX8/9/10/11),
+#    and configure Microsoft Edge ANGLE-Vulkan acceleration:
+powershell -ExecutionPolicy Bypass -File .\scripts\install_adreno730_gpu.ps1 -DriverDir .\prebuilt\Adreno730-GPU -InstallDXVK -ConfigureEdge
 ```
-Standard Vulkan apps using `vulkan-1.dll` will now enumerate **`Turnip Adreno (TM) 730 (Vulkan 1.4.348)`** with full 3D hardware rasterization and Win32 WSI swapchain presentation!
+- Standard Vulkan apps using `vulkan-1.dll` automatically use **`Turnip Adreno (TM) 730 (Vulkan 1.4.348)`**.
+- Drop `C:\Program Files\S22-Adreno730-GPU\OpenGL\{opengl32.dll, libgallium_wgl.dll}` next to any ARM64 OpenGL app for **OpenGL 4.6** (`Mesa Zink`).
+- Drop `C:\Program Files\S22-Adreno730-GPU\DXVK\{d3d8,d3d9,d3d10core,d3d11,dxgi}.dll` next to any ARM64 DirectX 8/9/10/11 app for **DXVK hardware acceleration**.
+- Microsoft Edge shortcuts launch with **ANGLE-Vulkan WebGL2** on Adreno 730.
 
 ---
 

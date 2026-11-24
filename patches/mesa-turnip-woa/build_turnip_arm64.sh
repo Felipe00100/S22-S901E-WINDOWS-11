@@ -64,3 +64,32 @@ fi
 echo "[4/4] Building vulkan_freedreno.dll..."
 ninja -C "$BUILD_DIR" src/freedreno/vulkan/vulkan_freedreno.dll
 ls -lh "$BUILD_DIR/src/freedreno/vulkan/vulkan_freedreno.dll"
+
+if [[ "${BUILD_ZINK:-1}" == "1" ]]; then
+    ZINK_DIR="${ZINK_DIR:-$MESA_DIR/build-zink-arm64}"
+    echo "[5/5] Building Mesa Zink OpenGL 4.6 (opengl32.dll + libgallium_wgl.dll)..."
+    if [[ ! -f "$ZINK_DIR/build.ninja" ]]; then
+        meson setup "$ZINK_DIR" "$MESA_DIR" \
+            --cross-file "$MESA_DIR/cross-win-arm64.txt" \
+            --buildtype=release \
+            -Dplatforms=windows \
+            -Dgallium-drivers=zink \
+            -Dvulkan-drivers= \
+            -Dopengl=true \
+            -Dgles1=disabled \
+            -Dgles2=disabled \
+            -Degl=disabled \
+            -Dglx=disabled \
+            -Dzlib=disabled \
+            -Dzstd=disabled \
+            -Dllvm=disabled \
+            -Dshared-llvm=disabled \
+            -Dcpp_rtti=false \
+            -Dmicrosoft-clc=disabled \
+            -Dgallium-mediafoundation=disabled \
+            -Dvideo-codecs= \
+            -Dxmlconfig=disabled
+    fi
+    ninja -C "$ZINK_DIR" src/gallium/targets/libgl-gdi/opengl32.dll src/gallium/targets/wgl/libgallium_wgl.dll
+    ls -lh "$ZINK_DIR/src/gallium/targets/libgl-gdi/opengl32.dll" "$ZINK_DIR/src/gallium/targets/wgl/libgallium_wgl.dll"
+fi

@@ -9,7 +9,6 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
-#include <dxgi1_2.h>
 typedef LONG NTSTATUS;
 #include <d3dkmthk.h>
 
@@ -80,8 +79,8 @@ struct wddm_thunks {
    PFND3DKMT_FREEGPUVIRTUALADDRESS free_gpu_va;
    PFND3DKMT_LOCK2 lock2;
    PFND3DKMT_UNLOCK2 unlock2;
+   PFND3DKMT_ENUMADAPTERS2 enum_adapters2;
    PFND3DKMT_ESCAPE escape;
-   HRESULT (WINAPI *create_dxgi_factory1)(REFIID, void **);
 };
 
 static struct wddm_thunks g_wddm;
@@ -94,8 +93,7 @@ wddm_load_thunks(void)
    g_wddm.initialized = true;
 
    HMODULE gdi = LoadLibraryA("gdi32.dll");
-   HMODULE dxgi = LoadLibraryA("dxgi.dll");
-   if (!gdi || !dxgi)
+   if (!gdi)
       return false;
 
 #define LOAD_GDI(field, sym, type)                                    \
@@ -107,6 +105,7 @@ wddm_load_thunks(void)
       }                                                               \
    } while (0)
 
+   LOAD_GDI(enum_adapters2, "D3DKMTEnumAdapters2", PFND3DKMT_ENUMADAPTERS2);
    LOAD_GDI(open_adapter_from_luid, "D3DKMTOpenAdapterFromLuid", PFND3DKMT_OPENADAPTERFROMLUID);
    LOAD_GDI(close_adapter, "D3DKMTCloseAdapter", PFND3DKMT_CLOSEADAPTER);
    LOAD_GDI(create_device, "D3DKMTCreateDevice", PFND3DKMT_CREATEDEVICE);
@@ -123,13 +122,6 @@ wddm_load_thunks(void)
    LOAD_GDI(unlock2, "D3DKMTUnlock2", PFND3DKMT_UNLOCK2);
    LOAD_GDI(escape, "D3DKMTEscape", PFND3DKMT_ESCAPE);
 #undef LOAD_GDI
-
-   g_wddm.create_dxgi_factory1 =
-      (HRESULT (WINAPI *)(REFIID, void **))GetProcAddress(dxgi, "CreateDXGIFactory1");
-   if (!g_wddm.create_dxgi_factory1) {
-      mesa_loge("tu_wddm: missing dxgi!CreateDXGIFactory1");
-      return false;
-   }
 
    g_wddm.ok = true;
    return true;
@@ -830,49 +822,48 @@ tu_knl_wddm_load(struct tu_instance *instance)
    if (!wddm_load_thunks())
       return VK_ERROR_INCOMPATIBLE_DRIVER;
 
-   IDXGIFactory1 *factory = NULL;
-   HRESULT hr = g_wddm.create_dxgi_factory1(__uuidof(IDXGIFactory1), (void **)&factory);
-   if (FAILED(hr) || !factory)
-      return VK_ERROR_INCOMPATIBLE_DRIVER;
-
    bool found = false;
    LUID found_luid = {};
    adreno_wddm_esc_info info = {};
 
-   for (UINT idx = 0; ; idx++) {
-      IDXGIAdapter1 *adapter = NULL;
-      if (factory->EnumAdapters1(idx, &adapter) != S_OK)
-         break;
+   /* Use D3DKMTEnumAdapters2 directly from gdi32 (never load dxgi.dll to avoid
+    * recursive deadlock when DXVK's dxgi.dll is in the application directory). */
+   D3DKMT_ENUMADAPTERS2 ea = {};
+   if (g_wddm.enum_adapters2(&ea) != STATUS_SUCCESS || ea.NumAdapters == 0)
+      return VK_ERROR_INCOMPATIBLE_DRIVER;
 
-      DXGI_ADAPTER_DESC1 desc = {};
-      if (SUCCEEDED(adapter->GetDesc1(&desc))) {
-         D3DKMT_OPENADAPTERFROMLUID ol = {};
-         ol.AdapterLuid = desc.AdapterLuid;
-         if (g_wddm.open_adapter_from_luid(&ol) == STATUS_SUCCESS && ol.hAdapter) {
+   D3DKMT_ADAPTERINFO *list = (D3DKMT_ADAPTERINFO *)
+      calloc(ea.NumAdapters, sizeof(D3DKMT_ADAPTERINFO));
+   if (!list)
+      return vk_error(instance, VK_ERROR_OUT_OF_HOST_MEMORY);
+
+   ea.pAdapters = list;
+   if (g_wddm.enum_adapters2(&ea) == STATUS_SUCCESS) {
+      for (ULONG idx = 0; idx < ea.NumAdapters; idx++) {
+         D3DKMT_HANDLE hAdapter = list[idx].hAdapter;
+         if (!hAdapter)
+            continue;
+         if (!found) {
             adreno_wddm_esc_info probe = {};
             probe.hdr.magic = ADRENO_WDDM_ESC_MAGIC;
             probe.hdr.version = ADRENO_WDDM_ESC_VERSION;
             probe.hdr.cmd = ADRENO_WDDM_ESC_GET_INFO;
 
-            NTSTATUS st = wddm_escape_call(ol.hAdapter, 0, &probe, sizeof(probe));
-            D3DKMT_CLOSEADAPTER ca = { ol.hAdapter };
-            g_wddm.close_adapter(&ca);
-
+            NTSTATUS st = wddm_escape_call(hAdapter, 0, &probe, sizeof(probe));
             if (st == STATUS_SUCCESS &&
                 probe.hdr.magic == ADRENO_WDDM_ESC_MAGIC &&
                 probe.hdr.status == 0 &&
                 probe.hw_ready) {
                found = true;
-               found_luid = desc.AdapterLuid;
+               found_luid = list[idx].AdapterLuid;
                info = probe;
-               adapter->Release();
-               break;
             }
          }
+         D3DKMT_CLOSEADAPTER ca = { hAdapter };
+         g_wddm.close_adapter(&ca);
       }
-      adapter->Release();
    }
-   factory->Release();
+   free(list);
 
    if (!found)
       return VK_ERROR_INCOMPATIBLE_DRIVER;

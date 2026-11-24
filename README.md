@@ -16,7 +16,7 @@ Open-source ARM64 drivers (including **Adreno 730 WDDM 2.0 + Mesa 26.1.0 Turnip 
 
 | Subsystem | Status | Implementation |
 | :--- | :---: | :--- |
-| **GPU 3D Acceleration (Adreno 730 — Vulkan 1.4.348 + WDDM 2.0)** | ✅ Working | **`adreno730_wddm.sys` v1.0.0.23** (WDDM 2.0 GpuMmu, 5-stage SM8450 bring-up, SMMU-500, GMU/HFI, UBWC 4.0, BR+BV sync, 19.2 MHz timestamps, ringbuffer wrap-around, boot-safe `StartGpu=0`) + **Mesa 26.1.0 Turnip (`vulkan_freedreno.dll` ARM64)** via official `vulkan-1.dll` & Win32 WSI (**355–402 FPS** live 3D swapchain, `0.15 ms` Gouraud triangle, `276.7 MB/s` D3D12 HW copy) |
+| **GPU 3D Acceleration (Adreno 730 — Vulkan 1.4.348, DirectX 11, OpenGL 4.6, WebGL2)** | ✅ Working | **`adreno730_wddm.sys` v1.0.0.24** (WDDM 2.0 GpuMmu, auto-start `StartGpu=1` with `BootInProgress` anti-bootloop watchdog) + **Mesa 26.1.0 Turnip (`vulkan_freedreno.dll`)** (`355–402 FPS` Win32 WSI, `0.13 ms` 3D triangle) + **Mesa 26.1.0 Zink (`opengl32.dll` + `libgallium_wgl.dll`, OpenGL 4.6)** (`61.9 FPS` SwapBuffers) + **DXVK 3.1.1 ARM64 (DX8/9/10/11)** (`3.64 ms` D3D11 FL11_0 triangle) + **Microsoft Edge WebGL2 ANGLE-Vulkan** (`60 draws in 0.50 ms`, `0` crashes) |
 | **UEFI (`Mu-Silicium` `r0q`) & Boot** | ✅ Working | Custom `Mu-Silicium` on `sda25` (`boot`), 15s auto-boot timer, power-button-free `Vol+ & Vol−` Enter, `UFS0._STA = 0x0F` |
 | **Internal UFS Storage (`sda41` NTFS)** | ✅ Working | Clean Windows 11 Pro ARM64 boot & clean shutdown (`rw` mount in TWRP, zero `fsck.ntfs`) |
 | **Display (SimpleFB)** | ✅ Working | Native FHD+ panel via UEFI framebuffer |
@@ -26,7 +26,7 @@ Open-source ARM64 drivers (including **Adreno 730 WDDM 2.0 + Mesa 26.1.0 Turnip 
 | **UEFI Charger Mode (`ChargerMode.efi`)** | ✅ Working | Live MAX77705 I2C5 telemetry (%, mV, mA, W, °C), 2.5A charging, OLED saver, button-free exit |
 | **1-Click TWRP Reboot (`Reiniciar_TWRP.cmd`)** | ✅ Working | ESP flag `\EFI\S22\reboot_twrp.flag` → PMK8350 `SDAM_2 0x7148` via `SPMIDxe` → warm reboot into TWRP (0 UFS writes) |
 | **TWRP Fast-Charge (`scripts/fc.sh`)** | ✅ Working | Clears `VOTER_USB_100MA` (`usb_conf_test=2`), `siop_level=100`, cores 1–7 offline, `powersave` |
-| **DWM / DXVK / OpenGL Desktop Offload** | 🔧 Next Phase | Vulkan 1.4.348 HW is live; DXVK/Zink + DWM desktop offload coming next |
+| **Full WDDM (Render + Display) & Original D3D12 UMD / DWM Offload** | 🔧 Next Phase | Full WDDM Display (VidPN/DPU scanout) + 100% original MIT D3D12 UMD (`adreno730_d3d12.dll`) for native `dwm.exe` desktop composition |
 | **Wi-Fi 2.4 GHz TX (`s3e.e` PA)** | 🔧 Planned | Needs PMR735A `s3e.e` 2.2V PA enable via AOSS QMP (`0x0C300000`) in Windows |
 | **Battery % / USB-C PD (`max77705batt.sys` / `max77705usbc.sys`)** | 🧪 Experimental | Source in `drivers/max77705-*` — pending live bring-up (currently `_STA = 0` in `SSDT.asl`) |
 | **Audio, BT, Sensors, Camera, Modem** | ❌ Not Yet | Future phases (see [`CHECKLIST.md`](CHECKLIST.md)) |
