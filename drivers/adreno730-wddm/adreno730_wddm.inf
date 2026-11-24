@@ -1,6 +1,6 @@
 ; SPDX-License-Identifier: MIT
-; Adreno 730 WDDM render-only miniport (staged S22 build).
-; Safe boot default: StartGpu=0 (toggle via Services\adreno730_wddm\Parameters\StartGpu=1).
+; Adreno 730 Full WDDM 2.0 (Render + Display) + Native DirectX 12 UMD (S22 build).
+; Safe boot default: StartGpu=1 + EnableDisplay=1 with BootInProgress anti-bootloop watchdog.
 
 [Version]
 Signature   = "$WINDOWS NT$"
@@ -8,7 +8,7 @@ Class       = Display
 ClassGuid   = {4d36e968-e325-11ce-bfc1-08002be10318}
 Provider    = %ManufacturerName%
 CatalogFile = adreno730_wddm.cat
-DriverVer   = 11/24/2026,1.0.0.28
+DriverVer   = 11/24/2026,1.0.0.39
 PnpLockdown = 1
 
 [SourceDisksNames]
@@ -42,7 +42,7 @@ adreno730_d3d12.dll
 [Adreno730_AddReg]
 HKR,,StartGpu,%REG_DWORD%,1
 HKR,,BootInProgress,%REG_DWORD%,0
-HKR,,EnableDisplay,%REG_DWORD%,0
+HKR,,EnableDisplay,%REG_DWORD%,1
 HKR,,UseSmmu,%REG_DWORD%,1
 HKR,,UseDefaultAddresses,%REG_DWORD%,1
 HKR,,UserModeDriverName,%REG_MULTI_SZ%,"adreno730_d3d12.dll","adreno730_d3d12.dll","adreno730_d3d12.dll","adreno730_d3d12.dll"
@@ -59,8 +59,8 @@ ServiceBinary = %12%\adreno730_wddm.sys
 
 [Strings]
 ManufacturerName       = "Adreno WOA Project"
-DeviceName             = "Qualcomm Adreno 730 WDDM Render-Only (S22)"
-ServiceName            = "Adreno 730 WDDM render-only"
+DeviceName             = "Qualcomm Adreno 730 WDDM 2.0 (S22)"
+ServiceName            = "Adreno 730 WDDM 2.0"
 DiskName               = "Adreno 730 WDDM Install Disk"
 REG_DWORD              = 0x00010001
 REG_MULTI_SZ           = 0x00010000

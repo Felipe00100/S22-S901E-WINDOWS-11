@@ -4,33 +4,6 @@
 
 #include <string.h>
 
-/*
- * A730 GPU state that Mesa's computerator writes before a compute launch.
- * These are the raw magic registers from freedreno_devices.py (a730 list);
- * they are not derivable from the public register XML.
- */
-static const uint32_t a730_magic_regs[][2] = {
-    {0x00000e17u, 0x00840004u}, {0x0000b600u, 0x01000000u},
-    {0x0000b602u, 0x00040724u}, {0x0000ae03u, 0x00001400u},
-    {0x0000ae08u, 0x00402400u}, {0x0000ae09u, 0x00000000u},
-    {0x0000ae0au, 0x00000000u}, {0x00000e10u, 0x00000000u},
-    {0x00000e11u, 0x00000040u}, {0x0000ae6cu, 0x00008000u},
-    {0x0000ae00u, 0x10000000u}, {0x00009804u, 0x00001f1fu},
-    {0x00009e00u, 0x20080000u}, {0x00009e24u, 0x21fc7f00u},
-    {0x0000a600u, 0x00000000u}, {0x0000ae06u, 0x00000000u},
-    {0x0000ae6au, 0x00000000u}, {0x0000ae6bu, 0x00000080u},
-    {0x0000ae73u, 0x00000000u}, {0x0000ab02u, 0x00000000u},
-    {0x0000ab01u, 0x00000000u}, {0x0000ab22u, 0x00000000u},
-    {0x0000b310u, 0x00000000u}, {0x00000ce2u, 0x00000000u},
-    {0x00000ce3u, 0x00000000u}, {0x00000ce4u, 0x00000000u},
-    {0x00000ce5u, 0x00000000u}, {0x00000ce6u, 0x00000000u},
-    {0x00000ce7u, 0x00000000u}, {0x000080a7u, 0x00000000u},
-    {0x00008600u, 0x00000800u}, {0x00008e01u, 0x00000000u},
-    {0x00008e79u, 0x00000000u}, {0x00008899u, 0x00000000u},
-    {0x00008e06u, 0x02080000u}, {0x00009600u, 0x02000000u},
-    {0x00000e12u, 0x03200000u}, {0x00008e04u, 0x00000000u},
-};
-
 const adreno_d3d12_ir3_meta adreno_d3d12_a730_test_meta = {
     ADRENO_IR3_TEST_SHADER_UNITS, ADRENO_IR3_TEST_CONSTLEN,
     ADRENO_IR3_TEST_FULLREG,     ADRENO_IR3_TEST_HALFREG,
@@ -290,18 +263,6 @@ enum adreno_status adreno_d3d12_resource_read(adreno_d3d12_resource *res,
     return ADRENO_ERR_UNSUPPORTED;
 }
 
-static bool d3d12_emit_a730_magic(adreno_pm4 *pm4)
-{
-    uint32_t i;
-
-    for (i = 0; i < ADRENO_ARRAY_SIZE(a730_magic_regs); i++) {
-        if (!adreno_pm4_reg_write(pm4, a730_magic_regs[i][0],
-                                  a730_magic_regs[i][1]))
-            return false;
-    }
-    return true;
-}
-
 enum adreno_status adreno_d3d12_cmd_dispatch_ir3(
     adreno_d3d12_cmdlist *cmd, const adreno_d3d12_resource *shader,
     const adreno_d3d12_ir3_meta *meta, const uint32_t *constants,
@@ -347,16 +308,9 @@ enum adreno_status adreno_d3d12_cmd_dispatch_ir3(
     pm4 = &cmd->pm4;
 
     /*
-     * a7xx pointer-restore/compute preamble, matching computerator's
-     * a6xx_emit_grid(): switch to the BR pipe first, then restore the
-     * device-specific chicken bits.
+     * Silicon-proven A730 compute dispatch sequence (avoids privileged
+     * kernel-only chicken/UCHE registers from user-mode IBs).
      */
-    if (!adreno_pm4_thread_control(pm4, 0x08000001u) ||
-        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_PERFCTR_SHADER_MASK, 0x20u) ||
-        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_NC_MODE_CNTL_2, 0u) ||
-        !d3d12_emit_a730_magic(pm4))
-        return ADRENO_ERR_OVERFLOW;
-
     cntl0 = ((meta->halfregfootprint & 0x3fu) << 1) |
             ((meta->fullregfootprint & 0x1fu) << 7) |
             ((meta->branchstack & 0x7fu) << 13) | ((meta->threadsize & 1u)
@@ -374,11 +328,21 @@ enum adreno_status adreno_d3d12_cmd_dispatch_ir3(
            ((meta->localid_regid & 0xffu) << 24);
     wie1 = 0x00fcu | ((meta->threadsize & 1u) << 8);
 
-    if (!adreno_pm4_reg_write(pm4, REG_A6XX_SP_MODE_CNTL, 0x5u) ||
+    if (!adreno_pm4_wait_for_idle(pm4) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_MODE_CNTL, 0x5u) ||
         !adreno_pm4_reg_write(pm4, REG_A7XX_SP_UPDATE_CNTL, 0xbfu) ||
         !adreno_pm4_reg_write(pm4, REG_A7XX_SP_CS_CONST_CONFIG,
                               ((meta->constlen >> 2) & 0xffu) | 0x100u) ||
         !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_CONFIG, 0x100u) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_BOOLEAN_CF_MASK, 0u) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_TSIZE, 0u) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_USIZE, 0u) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_PROGRAM_COUNTER_OFFSET, 0u) ||
+        !adreno_pm4_reg_write(pm4, REG_A7XX_SP_CS_VGS_CNTL, 0u) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_PVT_MEM_PARAM, 0u) ||
+        !adreno_pm4_reg_write64(pm4, REG_A6XX_SP_CS_PVT_MEM_BASE, 0ull) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_PVT_MEM_SIZE, 0u) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_PVT_MEM_STACK_OFFSET, 0u) ||
         !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_INSTR_SIZE,
                               meta->instrlen_units) ||
         !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_CNTL_0, cntl0) ||
@@ -394,7 +358,8 @@ enum adreno_status adreno_d3d12_cmd_dispatch_ir3(
         return ADRENO_ERR_OVERFLOW;
     if (!adreno_pm4_reg_write64(pm4, REG_A6XX_SP_CS_BASE, shader->iova) ||
         !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_INSTR_SIZE,
-                              meta->instrlen_units))
+                              meta->instrlen_units) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_CS_HYSTERESIS, 0u))
         return ADRENO_ERR_OVERFLOW;
 
     if (!adreno_pm4_load_state6_shader(pm4, ADRENO_SB6_CS_SHADER,
@@ -407,7 +372,7 @@ enum adreno_status adreno_d3d12_cmd_dispatch_ir3(
     if (!adreno_pm4_set_marker(pm4, 8u)) /* RM6_COMPUTE */
         return ADRENO_ERR_OVERFLOW;
 
-    work_dim = grid[2] > 1 ? 3u : (grid[1] > 1 ? 2u : 1u);
+    work_dim = 3u;
     nd0 = work_dim | ((meta->local_size[0] - 1u) << 2) |
           ((meta->local_size[1] - 1u) << 12) |
           ((meta->local_size[2] - 1u) << 22);
@@ -433,7 +398,10 @@ enum adreno_status adreno_d3d12_cmd_dispatch_ir3(
 
     if (!adreno_pm4_exec_cs(pm4, grid[0], grid[1], grid[2]) ||
         !adreno_pm4_wait_for_idle(pm4) ||
-        !adreno_pm4_cache_flush_ts(pm4))
+        !adreno_pm4_event_write_1(pm4, CACHE_CLEAN) ||
+        !adreno_pm4_event_write_1(pm4, CACHE_INVALIDATE7) ||
+        !adreno_pm4_emit_pkt7(pm4, CP_WAIT_MEM_WRITES, 0) ||
+        !adreno_pm4_wait_for_idle(pm4))
         return ADRENO_ERR_OVERFLOW;
 
     return pm4->overflow ? ADRENO_ERR_OVERFLOW : ADRENO_OK;

@@ -3,6 +3,9 @@ MIT License
 Copyright (c) 2026 Felipe00100 & S22 Windows Community Project Contributors
   - SM8450 / Galaxy S22 (r0q) 5-stage hardware bring-up (adreno730_hw.c/.h)
   - Full WDDM 2.0 Display / VidPN / EDID / 60Hz VSync / Scanout module (adreno730_display.c/.h)
+  - 100% Original Adreno 730 64-bit IR3 assembler (adreno_ir3_asm.h, ir3_asm.c)
+  - 100% Original Adreno 730 2D Blit/Clear & 3D Sysmem Direct-Render PM4 backend (adreno_a730_3d.h, a730_3d.c)
+  - 100% Original DXBC SM 4.0-5.1 -> Adreno 730 IR3 VS/PS/CS shader compiler (adreno_dxbc_ir3.h, dxbc_ir3.c)
   - WDDM 2.0 GpuMmu & D3DKMT Escape ABI (adreno_wddm_escape.h, WDDM updates)
   - A730 BR+BV concurrent binning sync, UBWC 4.0 init, ringbuffer wrap-around
   - ARM64 SMC helper (scm_smc_arm64.asm) and build scripts (build_adreno730_gpu.ps1)

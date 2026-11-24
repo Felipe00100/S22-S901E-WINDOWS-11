@@ -99,6 +99,9 @@ try {
         "$SrcDir\common\pm4.c" `
         "$SrcDir\common\d3d12.c" `
         "$SrcDir\common\ir3_ref.c" `
+        "$SrcDir\common\ir3_asm.c" `
+        "$SrcDir\common\a730_3d.c" `
+        "$SrcDir\common\dxbc_ir3.c" `
         /Fe:adreno730_d3d12.dll /link /MACHINE:ARM64 gdi32.lib
     if ($LASTEXITCODE -ne 0) { throw "UMD build failed ($LASTEXITCODE)" }
 

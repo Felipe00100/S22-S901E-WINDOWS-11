@@ -16,7 +16,7 @@ Open-source ARM64 drivers (including **Adreno 730 WDDM 2.0 + Mesa 26.1.0 Turnip 
 
 | Subsystem | Status | Implementation |
 | :--- | :---: | :--- |
-| **GPU 3D Acceleration & Full WDDM 2.0 Display (Adreno 730)** | ✅ Working | **`adreno730_wddm.sys` v1.0.0.28** (Full WDDM 2.0 Render + Display: `S22 OLED` `1080×2340 @ 60Hz` VidPN/EDID/VSync, `StartGpu=1` auto-start + `BootInProgress` anti-bootloop watchdog) + **Mesa 26.1.0 Turnip Vulkan 1.4.348** (`355–402 FPS` Win32 WSI, `0.13 ms` 3D triangle) + **Mesa 26.1.0 Zink OpenGL 4.6** (`61.9 FPS`) + **DXVK 3.1.1 ARM64 DirectX 8/9/10/11** (`3.64 ms` D3D11 FL11_0) + **Edge WebGL2** (`60 draws / 0.50 ms`, `0` crashes) |
+| **GPU 3D Acceleration, Full WDDM 2.0 Display & Native DirectX 12 (Adreno 730)** | ✅ Working | **`adreno730_wddm.sys` + `adreno730_d3d12.dll` v1.0.0.39** (Full WDDM 2.0 Render + Display: `S22 OLED` `1080×2340 @ 60Hz` VidPN/EDID/VSync, `StartGpu=1` + `EnableDisplay=1` default cold-reboot verified + `BootInProgress` anti-bootloop watchdog) + **100% Original MIT Native DirectX 12 Hardware Stack** (`adreno_ir3_asm` + `adreno_a730_3d` + `adreno_dxbc_ir3` compiling standard HLSL `vs_5_0`/`ps_5_0`/`cs_5_0` directly to A730 64-bit IR3: `1.22 ms` native D3D12 3D triangle + 2D HW Clear + `cs_5_0` Compute) + **Mesa 26.1.0 Turnip Vulkan 1.4.348** (`355–402 FPS`) + **Mesa 26.1.0 Zink OpenGL 4.6** (`61.9 FPS`) + **DXVK 3.1.1 ARM64 DirectX 8/9/10/11** (`3.64 ms`) + **Edge WebGL2** (`60 draws / 0.50 ms`) |
 | **UEFI (`Mu-Silicium` `r0q`) & Boot** | ✅ Working | Custom `Mu-Silicium` on `sda25` (`boot`), 15s auto-boot timer, power-button-free `Vol+ & Vol−` Enter, `UFS0._STA = 0x0F` |
 | **Internal UFS Storage (`sda41` NTFS)** | ✅ Working | Clean Windows 11 Pro ARM64 boot & clean shutdown (`rw` mount in TWRP, zero `fsck.ntfs`) |
 | **Display (SimpleFB)** | ✅ Working | Native FHD+ panel via UEFI framebuffer |
@@ -26,7 +26,7 @@ Open-source ARM64 drivers (including **Adreno 730 WDDM 2.0 + Mesa 26.1.0 Turnip 
 | **UEFI Charger Mode (`ChargerMode.efi`)** | ✅ Working | Live MAX77705 I2C5 telemetry (%, mV, mA, W, °C), 2.5A charging, OLED saver, button-free exit |
 | **1-Click TWRP Reboot (`Reiniciar_TWRP.cmd`)** | ✅ Working | ESP flag `\EFI\S22\reboot_twrp.flag` → PMK8350 `SDAM_2 0x7148` via `SPMIDxe` → warm reboot into TWRP (0 UFS writes) |
 | **TWRP Fast-Charge (`scripts/fc.sh`)** | ✅ Working | Clears `VOTER_USB_100MA` (`usb_conf_test=2`), `siop_level=100`, cores 1–7 offline, `powersave` |
-| **Original D3D12 UMD (DXIL→IR3) + DPU Zero-Copy Scanout / DWM Offload** | 🔧 Next Phase | Stage 2A Full WDDM Display (VidPN/EDID/60Hz VSync) is LIVE; next: native SM8450 DPU scanout + 100% original MIT D3D12 UMD (`adreno730_d3d12.dll`) for native `dwm.exe` desktop composition |
+| **D3D12 Textures/Samplers/DXGI SwapChain + DPU Scanout / DWM Offload** | 🔧 Next Phase | Native D3D12 2D Clear + 3D VS/PS + CS HLSL→IR3 & Full WDDM Display (`EnableDisplay=1` default) are LIVE; next: D3D12 SRV/Samplers + DXGI `Present` + SM8450 DPU scanout blit for native `dwm.exe` desktop composition |
 | **Wi-Fi 2.4 GHz TX (`s3e.e` PA)** | 🔧 Planned | Needs PMR735A `s3e.e` 2.2V PA enable via AOSS QMP (`0x0C300000`) in Windows |
 | **Battery % / USB-C PD (`max77705batt.sys` / `max77705usbc.sys`)** | 🧪 Experimental | Source in `drivers/max77705-*` — pending live bring-up (currently `_STA = 0` in `SSDT.asl`) |
 | **Audio, BT, Sensors, Camera, Modem** | ❌ Not Yet | Future phases (see [`CHECKLIST.md`](CHECKLIST.md)) |
@@ -42,7 +42,7 @@ Open-source ARM64 drivers (including **Adreno 730 WDDM 2.0 + Mesa 26.1.0 Turnip 
 ├── docs/
 │   └── REPLICATION_GUIDE.md       # Complete step-by-step replication, GPU & backup guide
 ├── prebuilt/                      # Compiled 100% open-source verified ARM64 binaries (MIT, unsigned)
-│   ├── Adreno730-GPU/             #   adreno730_wddm.sys (v1.0.0.23), adreno730_d3d12.dll, vulkan_freedreno.dll (Mesa 26.1.0)
+│   ├── Adreno730-GPU/             #   adreno730_wddm.sys + adreno730_d3d12.dll (v1.0.0.39), vulkan_freedreno.dll, opengl32.dll (Mesa 26.1.0)
 │   ├── Touchscreen-FTS2BA61Y/     #   fts2ba61y.sys (v1.0.2.0)
 │   └── WiFi-WCN6855-PDC/          #   s22wlanpdc.sys (v1.0.19.0 hardened MSI bridge)
 ├── drivers/                       # Full open-source driver code (MIT)

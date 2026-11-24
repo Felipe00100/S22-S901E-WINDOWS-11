@@ -125,11 +125,7 @@ bool adreno_pm4_load_state6_shader(adreno_pm4 *pm4, uint32_t state_block,
     ctrl = ((uint32_t)ADRENO_ST6_SHADER << 14) |
            ((uint32_t)ADRENO_SS6_INDIRECT << 16) |
            (state_block << 18) | (units << 22);
-    return adreno_pm4_emit_pkt7(pm4,
-                                (state_block == ADRENO_SB6_CS_SHADER)
-                                    ? CP_LOAD_STATE6
-                                    : CP_LOAD_STATE6_FRAG,
-                                3) &&
+    return adreno_pm4_emit_pkt7(pm4, CP_LOAD_STATE6_FRAG, 3) &&
            adreno_pm4_emit(pm4, ctrl) &&
            adreno_pm4_emit(pm4, (uint32_t)iova) &&
            adreno_pm4_emit(pm4, (uint32_t)(iova >> 32));
@@ -151,11 +147,7 @@ bool adreno_pm4_load_state6_const(adreno_pm4 *pm4, uint32_t state_block,
     ctrl = dst_vec4 | ((uint32_t)ADRENO_ST6_CONSTANTS << 14) |
            ((uint32_t)ADRENO_SS6_DIRECT << 16) | (state_block << 18) |
            (vec4s << 22);
-    if (!adreno_pm4_emit_pkt7(pm4,
-                              (state_block == ADRENO_SB6_CS_SHADER)
-                                  ? CP_LOAD_STATE6
-                                  : CP_LOAD_STATE6_FRAG,
-                              3 + vec4s * 4) ||
+    if (!adreno_pm4_emit_pkt7(pm4, CP_LOAD_STATE6_FRAG, 3 + vec4s * 4) ||
         !adreno_pm4_emit(pm4, ctrl) || !adreno_pm4_emit(pm4, 0) ||
         !adreno_pm4_emit(pm4, 0))
         return false;
