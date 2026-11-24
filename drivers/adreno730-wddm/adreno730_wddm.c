@@ -18,6 +18,7 @@
 #include "adreno/adreno_pm4.h"
 #include "adreno/adreno_wddm.h"
 #include "adreno730_hw.h"
+#include "adreno730_display.h"
 #include "adreno_wddm_escape.h"
 
 #define ADRENO_WDDM_TAG 'D730'
@@ -46,6 +47,7 @@ typedef struct ADRENO_WDDM_ADAPTER {
     HANDLE device_handle;
     adreno_wddm wddm;
     ADRENO_WDDM_HW hw;
+    ADRENO_WDDM_DISPLAY disp;
     ADRENO_WDDM_HOST_ALLOC host_allocs[ADRENO_WDDM_MAX_ALLOCS];
     ADRENO_WDDM_DMA_MAP dma_maps[32];
     ADRENO_WDDM_HWQUEUE *hw_queues[ADRENO_WDDM_MAX_HWQUEUES];
@@ -216,10 +218,18 @@ static NTSTATUS APIENTRY WddmStartDevice(PVOID context, PVOID start_info,
     }
     a->started = TRUE;
 
-    *sources = 0;
-    *children = 0;
-    WLog("StartDevice complete (render-only, hw_ready=%u, wddm_ver=0x%x)",
-         a->hw_ready ? 1u : 0u, g_wddm_version);
+    if (AdrenoDispReadEnableFlag() &&
+        NT_SUCCESS(AdrenoDispStart(&a->disp, a->device_handle, &a->dxgk))) {
+        *sources = 1;
+        *children = 1;
+        WLog("StartDevice complete (FULL WDDM Render+Display %ux%u@60Hz, hw_ready=%u, wddm_ver=0x%x)",
+             a->disp.width, a->disp.height, a->hw_ready ? 1u : 0u, g_wddm_version);
+    } else {
+        *sources = 0;
+        *children = 0;
+        WLog("StartDevice complete (render-only, hw_ready=%u, wddm_ver=0x%x)",
+             a->hw_ready ? 1u : 0u, g_wddm_version);
+    }
     return STATUS_SUCCESS;
 }
 
@@ -228,6 +238,8 @@ static NTSTATUS APIENTRY WddmStopDevice(PVOID context)
     PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
     WLog("StopDevice adapter=%p", a);
     if (a) {
+        if (a->disp.enabled)
+            AdrenoDispStop(&a->disp);
         if (a->hw_ready) {
             AdrenoWddmHwStop(&a->hw);
             a->hw_ready = FALSE;
@@ -293,9 +305,9 @@ static NTSTATUS APIENTRY WddmQueryChildRelations(PVOID context,
                                                  PDXGK_CHILD_DESCRIPTOR relations,
                                                  ULONG size)
 {
-    UNREFERENCED_PARAMETER(context);
-    UNREFERENCED_PARAMETER(relations);
-    UNREFERENCED_PARAMETER(size);
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    if (a && a->disp.enabled)
+        return AdrenoDispQueryChildRelations(&a->disp, relations, size);
     return STATUS_SUCCESS;
 }
 
@@ -303,19 +315,189 @@ static NTSTATUS APIENTRY WddmQueryChildStatus(PVOID context,
                                               PDXGK_CHILD_STATUS child_status,
                                               BOOLEAN non_destructive)
 {
-    UNREFERENCED_PARAMETER(context);
-    UNREFERENCED_PARAMETER(child_status);
-    UNREFERENCED_PARAMETER(non_destructive);
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    if (a && a->disp.enabled)
+        return AdrenoDispQueryChildStatus(&a->disp, child_status, non_destructive);
     return STATUS_NOT_SUPPORTED;
 }
 
 static NTSTATUS APIENTRY WddmQueryDeviceDescriptor(PVOID context, ULONG child_uid,
                                                    PDXGK_DEVICE_DESCRIPTOR desc)
 {
-    UNREFERENCED_PARAMETER(context);
-    UNREFERENCED_PARAMETER(child_uid);
-    UNREFERENCED_PARAMETER(desc);
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    if (a && a->disp.enabled)
+        return AdrenoDispQueryDeviceDescriptor(&a->disp, child_uid, desc);
     return STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmIsSupportedVidPn(PVOID context,
+                                              DXGKARG_ISSUPPORTEDVIDPN *arg)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled) ? AdrenoDispIsSupportedVidPn(&a->disp, arg)
+                                  : STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmRecommendFunctionalVidPn(
+    PVOID context, const DXGKARG_RECOMMENDFUNCTIONALVIDPN *arg)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled)
+               ? AdrenoDispRecommendFunctionalVidPn(&a->disp, arg)
+               : STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmEnumVidPnCofuncModality(
+    PVOID context, const DXGKARG_ENUMVIDPNCOFUNCMODALITY *arg)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled)
+               ? AdrenoDispEnumVidPnCofuncModality(&a->disp, arg)
+               : STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmRecommendMonitorModes(
+    PVOID context, const DXGKARG_RECOMMENDMONITORMODES *arg)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled)
+               ? AdrenoDispRecommendMonitorModes(&a->disp, arg)
+               : STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmRecommendVidPnTopology(
+    PVOID context, const DXGKARG_RECOMMENDVIDPNTOPOLOGY *arg)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled)
+               ? AdrenoDispRecommendVidPnTopology(&a->disp, arg)
+               : STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmSetVidPnSourceVisibility(
+    PVOID context, const DXGKARG_SETVIDPNSOURCEVISIBILITY *arg)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled)
+               ? AdrenoDispSetVidPnSourceVisibility(&a->disp, arg)
+               : STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmCommitVidPn(PVOID context,
+                                         const DXGKARG_COMMITVIDPN *arg)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled) ? AdrenoDispCommitVidPn(&a->disp, arg)
+                                  : STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmUpdateActiveVidPnPresentPath(
+    PVOID context, const DXGKARG_UPDATEACTIVEVIDPNPRESENTPATH *arg)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled)
+               ? AdrenoDispUpdateActiveVidPnPresentPath(&a->disp, arg)
+               : STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmSetVidPnSourceAddress(
+    PVOID context, const DXGKARG_SETVIDPNSOURCEADDRESS *arg)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled)
+               ? AdrenoDispSetVidPnSourceAddress(&a->disp, arg)
+               : STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmGetScanLine(PVOID context,
+                                         DXGKARG_GETSCANLINE *arg)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled) ? AdrenoDispGetScanLine(&a->disp, arg)
+                                  : STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmSetPalette(PVOID context,
+                                        const DXGKARG_SETPALETTE *arg)
+{
+    UNREFERENCED_PARAMETER(context);
+    UNREFERENCED_PARAMETER(arg);
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS APIENTRY WddmSetPointerPosition(
+    PVOID context, const DXGKARG_SETPOINTERPOSITION *arg)
+{
+    UNREFERENCED_PARAMETER(context);
+    UNREFERENCED_PARAMETER(arg);
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS APIENTRY WddmSetPointerShape(
+    PVOID context, const DXGKARG_SETPOINTERSHAPE *arg)
+{
+    UNREFERENCED_PARAMETER(context);
+    UNREFERENCED_PARAMETER(arg);
+    return STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmStopCapture(PVOID context,
+                                         const DXGKARG_STOPCAPTURE *arg)
+{
+    UNREFERENCED_PARAMETER(context);
+    UNREFERENCED_PARAMETER(arg);
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS APIENTRY WddmQueryVidPnHWCapability(
+    PVOID context, DXGKARG_QUERYVIDPNHWCAPABILITY *arg)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled)
+               ? AdrenoDispQueryVidPnHWCapability(&a->disp, arg)
+               : STATUS_NOT_SUPPORTED;
+}
+
+static NTSTATUS APIENTRY WddmStopDeviceAndReleasePostDisplayOwnership(
+    PVOID context, D3DDDI_VIDEO_PRESENT_TARGET_ID target_id,
+    PDXGK_DISPLAY_INFORMATION info)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    if (!a)
+        return STATUS_INVALID_PARAMETER;
+    (void)AdrenoDispStopAndReleasePostDisplay(&a->disp, target_id, info);
+    return WddmStopDevice(context);
+}
+
+static NTSTATUS APIENTRY WddmSystemDisplayEnable(
+    PVOID context, D3DDDI_VIDEO_PRESENT_TARGET_ID target_id,
+    PDXGKARG_SYSTEM_DISPLAY_ENABLE_FLAGS flags,
+    UINT *width, UINT *height, D3DDDIFORMAT *format)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled)
+               ? AdrenoDispSystemDisplayEnable(&a->disp, target_id, flags,
+                                               width, height, format)
+               : STATUS_NOT_SUPPORTED;
+}
+
+static VOID APIENTRY WddmSystemDisplayWrite(
+    PVOID context, PVOID source, UINT src_w, UINT src_h,
+    UINT src_stride, UINT pos_x, UINT pos_y)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    if (a && a->disp.enabled)
+        AdrenoDispSystemDisplayWrite(&a->disp, source, src_w, src_h,
+                                     src_stride, pos_x, pos_y);
+}
+
+static NTSTATUS APIENTRY WddmGetChildContainerId(
+    PVOID context, ULONG child_uid, PDXGK_CHILD_CONTAINER_ID cid)
+{
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    return (a && a->disp.enabled)
+               ? AdrenoDispGetChildContainerId(&a->disp, child_uid, cid)
+               : STATUS_NOT_SUPPORTED;
 }
 
 /* ---- Adapter information ----------------------------------------------- */
@@ -1402,17 +1584,25 @@ static NTSTATUS APIENTRY WddmControlInterrupt(PVOID context,
                                               const DXGK_INTERRUPT_TYPE type,
                                               BOOLEAN enable)
 {
-    UNREFERENCED_PARAMETER(context);
-    UNREFERENCED_PARAMETER(type);
-    UNREFERENCED_PARAMETER(enable);
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    if (a && a->disp.enabled &&
+        (type == DXGK_INTERRUPT_CRTC_VSYNC ||
+         type == DXGK_INTERRUPT_CRTC_VSYNC_WITH_MULTIPLANE_OVERLAY)) {
+        return AdrenoDispControlVsync(&a->disp, enable);
+    }
     return STATUS_SUCCESS;
 }
 
 static NTSTATUS APIENTRY WddmControlInterrupt2(
     PVOID context, const DXGKARG_CONTROLINTERRUPT2 arg)
 {
-    UNREFERENCED_PARAMETER(context);
-    UNREFERENCED_PARAMETER(arg);
+    PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
+    if (a && a->disp.enabled &&
+        (arg.InterruptType == DXGK_INTERRUPT_CRTC_VSYNC ||
+         arg.InterruptType == DXGK_INTERRUPT_CRTC_VSYNC_WITH_MULTIPLANE_OVERLAY)) {
+        BOOLEAN en = (arg.InterruptState == DXGK_INTERRUPT_ENABLE) ? TRUE : FALSE;
+        return AdrenoDispControlVsync(&a->disp, en);
+    }
     return STATUS_SUCCESS;
 }
 
@@ -1637,6 +1827,26 @@ static void FillCommonDdi(DRIVER_INITIALIZATION_DATA *data, ULONG version)
     data->DxgkDdiPreemptCommand = WddmPreemptCommand;
     data->DxgkDdiSubmitCommand = WddmSubmitCommand;
     data->DxgkDdiQueryCurrentFence = WddmQueryCurrentFence;
+    data->DxgkDdiIsSupportedVidPn = WddmIsSupportedVidPn;
+    data->DxgkDdiRecommendFunctionalVidPn = WddmRecommendFunctionalVidPn;
+    data->DxgkDdiEnumVidPnCofuncModality = WddmEnumVidPnCofuncModality;
+    data->DxgkDdiSetVidPnSourceAddress = WddmSetVidPnSourceAddress;
+    data->DxgkDdiSetVidPnSourceVisibility = WddmSetVidPnSourceVisibility;
+    data->DxgkDdiCommitVidPn = WddmCommitVidPn;
+    data->DxgkDdiUpdateActiveVidPnPresentPath = WddmUpdateActiveVidPnPresentPath;
+    data->DxgkDdiRecommendMonitorModes = WddmRecommendMonitorModes;
+    data->DxgkDdiRecommendVidPnTopology = WddmRecommendVidPnTopology;
+    data->DxgkDdiGetScanLine = WddmGetScanLine;
+    data->DxgkDdiSetPalette = WddmSetPalette;
+    data->DxgkDdiSetPointerPosition = WddmSetPointerPosition;
+    data->DxgkDdiSetPointerShape = WddmSetPointerShape;
+    data->DxgkDdiStopCapture = WddmStopCapture;
+    data->DxgkDdiQueryVidPnHWCapability = WddmQueryVidPnHWCapability;
+    data->DxgkDdiStopDeviceAndReleasePostDisplayOwnership =
+        WddmStopDeviceAndReleasePostDisplayOwnership;
+    data->DxgkDdiSystemDisplayEnable = WddmSystemDisplayEnable;
+    data->DxgkDdiSystemDisplayWrite = WddmSystemDisplayWrite;
+    data->DxgkDdiGetChildContainerId = WddmGetChildContainerId;
     data->DxgkDdiInterruptRoutine = WddmInterruptRoutine;
     data->DxgkDdiDpcRoutine = WddmDpcRoutine;
     data->DxgkDdiSetPowerState = WddmSetPowerState;
@@ -1674,7 +1884,7 @@ NTSTATUS DriverEntry(_In_ PDRIVER_OBJECT driver,
     DRIVER_INITIALIZATION_DATA data;
     NTSTATUS status;
 
-    WLog("DriverEntry starting (staged v1.0.0.23)");
+    WLog("DriverEntry starting (v1.0.0.25 Full WDDM Display-capable)");
 
     /* Try WDDM 2.0 (GpuMmu + D3D12) first, with clean fallback to WDDM 1.3 */
     g_wddm_version = DXGKDDI_INTERFACE_VERSION_WDDM2_0;

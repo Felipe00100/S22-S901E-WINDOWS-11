@@ -68,6 +68,7 @@ try {
     $kmdSources = @(
         "$SrcDir\adreno730_wddm.c",
         "$SrcDir\adreno730_hw.c",
+        "$SrcDir\adreno730_display.c",
         "$SrcDir\common\wddm.c",
         "$SrcDir\common\gpu.c",
         "$SrcDir\common\pm4.c",
@@ -82,7 +83,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "KMD compile failed ($LASTEXITCODE)" }
 
     & $LINK /nologo /DRIVER /KERNEL /SUBSYSTEM:NATIVE /ENTRY:DriverEntry /MACHINE:ARM64 /OPT:REF /OPT:ICF /INTEGRITYCHECK `
-        adreno730_wddm.obj adreno730_hw.obj wddm.obj scm_smc_arm64.obj `
+        adreno730_wddm.obj adreno730_hw.obj adreno730_display.obj wddm.obj scm_smc_arm64.obj `
         gpu.obj pm4.obj ring.obj ir3_ref.obj fw.obj hfi.obj a730.obj smmu.obj `
         displib.lib ntoskrnl.lib hal.lib bufferoverflowfastfailk.lib wdmsec.lib ntstrsafe.lib libcntpr.lib `
         /OUT:adreno730_wddm.sys

@@ -6,7 +6,7 @@ This repository contains **only open-source code, ACPI tables, UEFI/Mesa patches
 The following components are 100% original works licensed under the [MIT License](LICENSE) (`Copyright (c) 2026 Felipe00100 & S22 Windows Community Project Contributors`):
 - `drivers/fts2ba61y-touch/` — STMicroelectronics FTS2BA61Y HID Multitouch KMDF driver (`fts2ba61y.sys`)
 - `drivers/s22-wlan-pdc/` — SM8450 PCIe0 DesignWare iMSI-RX → GICD MSI bridge KMDF driver (`s22wlanpdc.sys`)
-- `drivers/adreno730-wddm/adreno730_hw.c`, `adreno730_hw.h`, `adreno_wddm_escape.h`, `scm_smc_arm64.asm`, `build_adreno730_gpu.ps1` — SM8450 / Galaxy S22 Adreno 730 5-stage hardware bring-up, WDDM 2.0 GpuMmu/Escape ABI, BR+BV concurrent binning sync, UBWC 4.0 initialization, ringbuffer wrap-around, and ARM64 SMC helper
+- `drivers/adreno730-wddm/adreno730_hw.c`, `adreno730_hw.h`, `adreno730_display.c`, `adreno730_display.h`, `adreno_wddm_escape.h`, `scm_smc_arm64.asm`, `build_adreno730_gpu.ps1` — SM8450 / Galaxy S22 Adreno 730 5-stage hardware bring-up, Full WDDM 2.0 Display (VidPN, EDID, 60 Hz VSync, Scanout), WDDM 2.0 GpuMmu/Escape ABI, BR+BV concurrent binning sync, UBWC 4.0 initialization, ringbuffer wrap-around, and ARM64 SMC helper
 - `patches/mesa-turnip-woa/tu_knl_wddm.cc`, `adreno_wddm_escape.h`, `cross-win-arm64.txt.in`, `build_turnip_arm64.sh`, `freedreno_icd.aarch64.json` — Native Windows WDDM 2.0 kernel backend for Mesa Turnip and Windows ARM64 cross-build tooling
 - `drivers/max77705-battery/` — Experimental Maxim MAX77705 Fuel Gauge / Charger KMDF driver (`max77705batt.sys`)
 - `drivers/max77705-usbc/` — Experimental Maxim MAX77705 CCIC / USB-C KMDF driver (`max77705usbc.sys`)

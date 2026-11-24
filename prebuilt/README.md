@@ -4,7 +4,7 @@ This folder contains **only 100% open-source, MIT-licensed drivers compiled dire
 
 | Folder | Binaries | Version | License | Status | Hardware |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `Adreno730-GPU/` | `adreno730_wddm.sys`, `adreno730_d3d12.dll`, `adreno730_wddm.inf`, `vulkan_freedreno.dll`, `freedreno_icd.aarch64.json`, `opengl32.dll`, `libgallium_wgl.dll` | KMD `1.0.0.24` (`StartGpu=1` + watchdog) / Mesa `26.1.0` Turnip (Vulkan `1.4.348`) + Zink (OpenGL `4.6`) | **MIT** | **Verified (Vulkan 402 FPS, OpenGL 4.6 62 FPS, DXVK DX11, Edge WebGL2)** | Qualcomm Adreno 730 WDDM 2.0 + Turnip Vulkan 1.4.348 + Zink OpenGL 4.6 |
+| `Adreno730-GPU/` | `adreno730_wddm.sys`, `adreno730_d3d12.dll`, `adreno730_wddm.inf`, `vulkan_freedreno.dll`, `freedreno_icd.aarch64.json`, `opengl32.dll`, `libgallium_wgl.dll` | KMD `1.0.0.28` (Full WDDM 2.0 Display + `StartGpu=1` watchdog) / Mesa `26.1.0` Turnip (Vulkan `1.4.348`) + Zink (OpenGL `4.6`) | **MIT** | **Verified (Full WDDM VidPN/60Hz VSync, Vulkan 402 FPS, OpenGL 4.6 62 FPS, DXVK DX11, Edge WebGL2)** | Qualcomm Adreno 730 Full WDDM 2.0 + Turnip Vulkan 1.4.348 + Zink OpenGL 4.6 |
 | `Touchscreen-FTS2BA61Y/` | `fts2ba61y.sys` + `fts2ba61y.inf` | `1.0.2.0` | **MIT** | **Verified** | STMicroelectronics FTS2BA61Y 10-finger HID Multitouch (TLMM SPI bit-bang) |
 | `WiFi-WCN6855-PDC/` | `s22wlanpdc.sys` + `s22wlanpdc.inf` | `1.0.19.0` | **MIT** | **Verified** | SM8450 PCIe0 DesignWare `iMSI-RX` → `GICD_ISPENDR[2]` MSI Bridge for WCN6855 Wi-Fi 6E |
 
