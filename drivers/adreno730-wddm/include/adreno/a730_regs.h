@@ -1,0 +1,1475 @@
+/* SPDX-License-Identifier: MIT
+ *
+ * A730 / Adreno 7xx register and packet constants.
+ * Generated from the freedreno rnndb XML by tools/gen_reg_header.py.
+ * Register database copyright (c) freedreno contributors, MIT.
+ * Do not edit manually; run scripts/gen_regs.sh and this tool.
+ */
+#ifndef ADRENO_A730_REGS_H
+#define ADRENO_A730_REGS_H
+
+/* Register addresses are in dwords (as used by CP TYPE4 packets). */
+#define REG_A6XX_CP_2D_EVENT_END                             0x0000d701
+#define REG_A6XX_CP_2D_EVENT_START                           0x0000d700
+#define REG_A6XX_CP_ADDR_MODE_CNTL                           0x00000842
+#define REG_A6XX_CP_AHB_CNTL                                 0x0000098d
+#define REG_A6XX_CP_ALWAYS_ON_CONTEXT                        0x00000982
+#define REG_A6XX_CP_ALWAYS_ON_COUNTER                        0x00000980
+#define REG_A6XX_CP_APERTURE_CNTL_CD                         0x00000a03
+#define REG_A6XX_CP_APERTURE_CNTL_HOST                       0x00000a00
+#define REG_A6XX_CP_APERTURE_CNTL_SQE                        0x00000a01
+#define REG_A6XX_CP_APRIV_CNTL                               0x00000844
+#define REG_A6XX_CP_CHICKEN_DBG                              0x00000841
+#define REG_A6XX_CP_CONTEXT_SWITCH_CNTL                      0x000008a0
+#define REG_A6XX_CP_CONTEXT_SWITCH_NON_PRIV_RESTORE_ADDR     0x000008a7
+#define REG_A6XX_CP_CONTEXT_SWITCH_PRIV_NON_SECURE_RESTORE_ADDR 0x000008a3
+#define REG_A6XX_CP_CONTEXT_SWITCH_PRIV_SECURE_RESTORE_ADDR  0x000008a5
+#define REG_A6XX_CP_CONTEXT_SWITCH_SMMU_INFO                 0x000008a1
+#define REG_A6XX_CP_CP2GMU_STATUS                            0x00000812
+#define REG_A6XX_CP_CRASH_DUMP_CNTL                          0x00000902
+#define REG_A6XX_CP_CRASH_DUMP_SCRIPT_BASE                   0x00000900
+#define REG_A6XX_CP_CRASH_DUMP_STATUS                        0x00000903
+#define REG_A6XX_CP_DBG_ECO_CNTL                             0x00000843
+#define REG_A6XX_CP_DRAW_STATE_ADDR                          0x0000090a
+#define REG_A6XX_CP_DRAW_STATE_DATA                          0x0000090b
+#define REG_A6XX_CP_EVENT_END                                0x0000d601
+#define REG_A6XX_CP_EVENT_START                              0x0000d600
+#define REG_A6XX_CP_HW_FAULT                                 0x00000821
+#define REG_A6XX_CP_IB1_BASE                                 0x00000928
+#define REG_A6XX_CP_IB1_INIT_SIZE                            0x00000943
+#define REG_A6XX_CP_IB1_REM_SIZE                             0x0000092a
+#define REG_A6XX_CP_IB2_BASE                                 0x0000092b
+#define REG_A6XX_CP_IB2_INIT_SIZE                            0x00000944
+#define REG_A6XX_CP_IB2_REM_SIZE                             0x0000092d
+#define REG_A6XX_CP_INTERRUPT_STATUS                         0x00000823
+#define REG_A6XX_CP_LPAC_SQE_CNTL                            0x00000b81
+#define REG_A6XX_CP_LPAC_SQE_INSTR_BASE                      0x00000b82
+#define REG_A6XX_CP_MEM_POOL_DBG_ADDR                        0x0000090e
+#define REG_A6XX_CP_MEM_POOL_DBG_DATA                        0x0000090f
+#define REG_A6XX_CP_MEM_POOL_SIZE                            0x000008c3
+#define REG_A6XX_CP_MISC_CNTL                                0x00000840
+#define REG_A6XX_CP_MRB_BASE                                 0x00000931
+#define REG_A6XX_CP_MRB_INIT_SIZE                            0x00000946
+#define REG_A6XX_CP_MRB_REM_SIZE                             0x00000933
+#define REG_A6XX_CP_PERFCTR_CP_SEL(i0)                       (0x000008d0 + 0x1*i0 )
+#define REG_A6XX_CP_PREEMPT_THRESHOLD                        0x000008c0
+#define REG_A6XX_CP_PROTECT(i0)                              (0x00000850 + 0x1*i0 )
+#define REG_A6XX_CP_PROTECT_CNTL                             0x0000084f
+#define REG_A6XX_CP_PROTECT_STATUS                           0x00000824
+#define REG_A6XX_CP_RB_BASE                                  0x00000800
+#define REG_A6XX_CP_RB_CNTL                                  0x00000802
+#define REG_A6XX_CP_RB_RPTR                                  0x00000806
+#define REG_A6XX_CP_RB_RPTR_ADDR                             0x00000804
+#define REG_A6XX_CP_RB_WPTR                                  0x00000807
+#define REG_A6XX_CP_ROQ_AVAIL_IB1                            0x00000949
+#define REG_A6XX_CP_ROQ_AVAIL_IB2                            0x0000094a
+#define REG_A6XX_CP_ROQ_AVAIL_MRB                            0x0000094c
+#define REG_A6XX_CP_ROQ_AVAIL_RB                             0x00000948
+#define REG_A6XX_CP_ROQ_AVAIL_SDS                            0x0000094b
+#define REG_A6XX_CP_ROQ_AVAIL_VSD                            0x0000094d
+#define REG_A6XX_CP_ROQ_DBG_ADDR                             0x0000090c
+#define REG_A6XX_CP_ROQ_DBG_DATA                             0x0000090d
+#define REG_A6XX_CP_ROQ_IB1_STATUS                           0x0000093a
+#define REG_A6XX_CP_ROQ_IB2_STATUS                           0x0000093b
+#define REG_A6XX_CP_ROQ_MRB_STATUS                           0x0000093d
+#define REG_A6XX_CP_ROQ_RB_STATUS                            0x00000939
+#define REG_A6XX_CP_ROQ_SDS_STATUS                           0x0000093c
+#define REG_A6XX_CP_ROQ_THRESHOLDS_1                         0x000008c1
+#define REG_A6XX_CP_ROQ_THRESHOLDS_2                         0x000008c2
+#define REG_A6XX_CP_ROQ_VSD_STATUS                           0x0000093e
+#define REG_A6XX_CP_SCRATCH(i0)                              (0x00000883 + 0x1*i0 )
+#define REG_A6XX_CP_SDS_BASE                                 0x0000092e
+#define REG_A6XX_CP_SDS_INIT_SIZE                            0x00000945
+#define REG_A6XX_CP_SDS_REM_SIZE                             0x00000930
+#define REG_A6XX_CP_SQE_CNTL                                 0x00000808
+#define REG_A6XX_CP_SQE_INSTR_BASE                           0x00000830
+#define REG_A6XX_CP_SQE_STAT_ADDR                            0x00000908
+#define REG_A6XX_CP_SQE_STAT_DATA                            0x00000909
+#define REG_A6XX_CP_SQE_UCODE_DBG_ADDR                       0x00000910
+#define REG_A6XX_CP_SQE_UCODE_DBG_DATA                       0x00000911
+#define REG_A6XX_CP_STATUS_1                                 0x00000825
+#define REG_A6XX_CP_VSD_BASE                                 0x00000934
+#define REG_A6XX_CP_VSD_INIT_SIZE                            0x00000947
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_BYTEL_0                  0x00000010
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_BYTEL_1                  0x00000011
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_CNTLM                    0x00000005
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_CNTLT                    0x00000004
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_IVTL_0                   0x00000008
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_IVTL_1                   0x00000009
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_IVTL_2                   0x0000000a
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_IVTL_3                   0x0000000b
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_MASKL_0                  0x0000000c
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_MASKL_1                  0x0000000d
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_MASKL_2                  0x0000000e
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_MASKL_3                  0x0000000f
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_SEL_A                    0x00000000
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_SEL_B                    0x00000001
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_SEL_C                    0x00000002
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_SEL_D                    0x00000003
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_TRACE_BUF1               0x0000002f
+#define REG_A6XX_CX_DBGC_CFG_DBGBUS_TRACE_BUF2               0x00000030
+#define REG_A6XX_CX_MISC_SYSTEM_CACHE_CNTL_0                 0x00000001
+#define REG_A6XX_CX_MISC_SYSTEM_CACHE_CNTL_1                 0x00000002
+#define REG_A6XX_DBGC_AHB_DBG_CNTL                           0x0000063c
+#define REG_A6XX_DBGC_CFG_DBGBUS_BYTEL_0                     0x00000610
+#define REG_A6XX_DBGC_CFG_DBGBUS_BYTEL_1                     0x00000611
+#define REG_A6XX_DBGC_CFG_DBGBUS_CLRC                        0x0000061f
+#define REG_A6XX_DBGC_CFG_DBGBUS_CNTLM                       0x00000605
+#define REG_A6XX_DBGC_CFG_DBGBUS_CNTLT                       0x00000604
+#define REG_A6XX_DBGC_CFG_DBGBUS_COUNT0                      0x00000627
+#define REG_A6XX_DBGC_CFG_DBGBUS_COUNT1                      0x00000628
+#define REG_A6XX_DBGC_CFG_DBGBUS_COUNT2                      0x00000629
+#define REG_A6XX_DBGC_CFG_DBGBUS_COUNT3                      0x0000062a
+#define REG_A6XX_DBGC_CFG_DBGBUS_COUNT4                      0x0000062b
+#define REG_A6XX_DBGC_CFG_DBGBUS_COUNT5                      0x0000062c
+#define REG_A6XX_DBGC_CFG_DBGBUS_EVENT_LOGIC                 0x00000625
+#define REG_A6XX_DBGC_CFG_DBGBUS_IDX                         0x0000061e
+#define REG_A6XX_DBGC_CFG_DBGBUS_IVTE_0                      0x00000612
+#define REG_A6XX_DBGC_CFG_DBGBUS_IVTE_1                      0x00000613
+#define REG_A6XX_DBGC_CFG_DBGBUS_IVTE_2                      0x00000614
+#define REG_A6XX_DBGC_CFG_DBGBUS_IVTE_3                      0x00000615
+#define REG_A6XX_DBGC_CFG_DBGBUS_IVTL_0                      0x00000608
+#define REG_A6XX_DBGC_CFG_DBGBUS_IVTL_1                      0x00000609
+#define REG_A6XX_DBGC_CFG_DBGBUS_IVTL_2                      0x0000060a
+#define REG_A6XX_DBGC_CFG_DBGBUS_IVTL_3                      0x0000060b
+#define REG_A6XX_DBGC_CFG_DBGBUS_LOADIVT                     0x00000620
+#define REG_A6XX_DBGC_CFG_DBGBUS_LOADREG                     0x0000061d
+#define REG_A6XX_DBGC_CFG_DBGBUS_MASKE_0                     0x00000616
+#define REG_A6XX_DBGC_CFG_DBGBUS_MASKE_1                     0x00000617
+#define REG_A6XX_DBGC_CFG_DBGBUS_MASKE_2                     0x00000618
+#define REG_A6XX_DBGC_CFG_DBGBUS_MASKE_3                     0x00000619
+#define REG_A6XX_DBGC_CFG_DBGBUS_MASKL_0                     0x0000060c
+#define REG_A6XX_DBGC_CFG_DBGBUS_MASKL_1                     0x0000060d
+#define REG_A6XX_DBGC_CFG_DBGBUS_MASKL_2                     0x0000060e
+#define REG_A6XX_DBGC_CFG_DBGBUS_MASKL_3                     0x0000060f
+#define REG_A6XX_DBGC_CFG_DBGBUS_MISC_MODE                   0x00000644
+#define REG_A6XX_DBGC_CFG_DBGBUS_MISR0                       0x00000633
+#define REG_A6XX_DBGC_CFG_DBGBUS_MISR1                       0x00000634
+#define REG_A6XX_DBGC_CFG_DBGBUS_NIBBLEE                     0x0000061a
+#define REG_A6XX_DBGC_CFG_DBGBUS_OPE                         0x00000607
+#define REG_A6XX_DBGC_CFG_DBGBUS_OPL                         0x00000606
+#define REG_A6XX_DBGC_CFG_DBGBUS_OVER                        0x00000626
+#define REG_A6XX_DBGC_CFG_DBGBUS_PONG_SEL_A                  0x00000640
+#define REG_A6XX_DBGC_CFG_DBGBUS_PONG_SEL_B                  0x00000641
+#define REG_A6XX_DBGC_CFG_DBGBUS_PONG_SEL_C                  0x00000642
+#define REG_A6XX_DBGC_CFG_DBGBUS_PONG_SEL_D                  0x00000643
+#define REG_A6XX_DBGC_CFG_DBGBUS_PTRC0                       0x0000061b
+#define REG_A6XX_DBGC_CFG_DBGBUS_PTRC1                       0x0000061c
+#define REG_A6XX_DBGC_CFG_DBGBUS_SEL_A                       0x00000600
+#define REG_A6XX_DBGC_CFG_DBGBUS_SEL_B                       0x00000601
+#define REG_A6XX_DBGC_CFG_DBGBUS_SEL_C                       0x00000602
+#define REG_A6XX_DBGC_CFG_DBGBUS_SEL_D                       0x00000603
+#define REG_A6XX_DBGC_CFG_DBGBUS_TRACE_ADDR                  0x0000062d
+#define REG_A6XX_DBGC_CFG_DBGBUS_TRACE_BUF0                  0x0000062e
+#define REG_A6XX_DBGC_CFG_DBGBUS_TRACE_BUF1                  0x0000062f
+#define REG_A6XX_DBGC_CFG_DBGBUS_TRACE_BUF2                  0x00000630
+#define REG_A6XX_DBGC_CFG_DBGBUS_TRACE_BUF3                  0x00000631
+#define REG_A6XX_DBGC_CFG_DBGBUS_TRACE_BUF4                  0x00000632
+#define REG_A6XX_DBGC_DBG_LOPC_SB_RD_ADDR                    0x00000666
+#define REG_A6XX_DBGC_DBG_LOPC_SB_RD_DATA                    0x00000667
+#define REG_A6XX_DBGC_DBG_LOPC_SB_WR_ADDR                    0x00000668
+#define REG_A6XX_DBGC_DBG_LOPC_SB_WR_DATA                    0x00000669
+#define REG_A6XX_DBGC_DBG_LO_HI_GPIO                         0x00000622
+#define REG_A6XX_DBGC_DBG_TRACE_BUFFER_RD_ADDR               0x00000662
+#define REG_A6XX_DBGC_DBG_TRACE_BUFFER_RD_DATA               0x00000663
+#define REG_A6XX_DBGC_ECO_CNTL                               0x0000063b
+#define REG_A6XX_DBGC_EVT_CFG                                0x00000635
+#define REG_A6XX_DBGC_EVT_INTF_SEL_0                         0x00000636
+#define REG_A6XX_DBGC_EVT_INTF_SEL_1                         0x00000637
+#define REG_A6XX_DBGC_EVT_INTF_SEL_2                         0x0000063d
+#define REG_A6XX_DBGC_EVT_INTF_SEL_3_0                       0x00000650
+#define REG_A6XX_DBGC_EVT_INTF_SEL_3_1                       0x00000651
+#define REG_A6XX_DBGC_EVT_INTF_SEL_3_2                       0x00000652
+#define REG_A6XX_DBGC_EVT_INTF_SEL_3_3                       0x00000653
+#define REG_A6XX_DBGC_EVT_INTF_SEL_3_4                       0x00000654
+#define REG_A6XX_DBGC_EVT_INTF_SEL_3_5                       0x00000655
+#define REG_A6XX_DBGC_EVT_SLICE_CFG                          0x00000638
+#define REG_A6XX_DBGC_EXT_TRACE_BUS_CNTL                     0x00000623
+#define REG_A6XX_DBGC_GBIF_DBG_BASE                          0x00000680
+#define REG_A6XX_DBGC_GBIF_DBG_BUFF_SIZE                     0x00000682
+#define REG_A6XX_DBGC_GBIF_DBG_CMD                           0x00000684
+#define REG_A6XX_DBGC_GBIF_DBG_CNTL                          0x00000683
+#define REG_A6XX_DBGC_GBIF_DBG_STATUS                        0x00000685
+#define REG_A6XX_DBGC_INTERRUPT_STATUS                       0x0000066a
+#define REG_A6XX_DBGC_QDSS_TIMESTAMP_0                       0x00000639
+#define REG_A6XX_DBGC_QDSS_TIMESTAMP_1                       0x0000063a
+#define REG_A6XX_DBGC_READ_AHB_THROUGH_DBG                   0x00000624
+#define REG_A6XX_DBGC_SMMU_FAULT_BLOCK_HALT_CFG              0x00000665
+#define REG_A6XX_DBGC_TRACE_BUFFER_ATB_RD_STATUS             0x00000664
+#define REG_A6XX_DBGC_TRACE_BUFFER_CMD                       0x00000661
+#define REG_A6XX_DBGC_TRACE_BUFFER_STATUS                    0x00000660
+#define REG_A6XX_DBGC_VBIF_DBG_CNTL                          0x00000621
+#define REG_A6XX_GBIF_CX_CONFIG                              0x00003c00
+#define REG_A6XX_GBIF_HALT                                   0x00003c45
+#define REG_A6XX_GBIF_HALT_ACK                               0x00003c46
+#define REG_A6XX_GBIF_PERF_CNT_HIGH0                         0x00003cc8
+#define REG_A6XX_GBIF_PERF_CNT_HIGH1                         0x00003cc9
+#define REG_A6XX_GBIF_PERF_CNT_HIGH2                         0x00003cca
+#define REG_A6XX_GBIF_PERF_CNT_HIGH3                         0x00003ccb
+#define REG_A6XX_GBIF_PERF_CNT_LOW0                          0x00003cc4
+#define REG_A6XX_GBIF_PERF_CNT_LOW1                          0x00003cc5
+#define REG_A6XX_GBIF_PERF_CNT_LOW2                          0x00003cc6
+#define REG_A6XX_GBIF_PERF_CNT_LOW3                          0x00003cc7
+#define REG_A6XX_GBIF_PERF_CNT_SEL                           0x00003cc2
+#define REG_A6XX_GBIF_PERF_PWR_CNT_CLR                       0x00003cc1
+#define REG_A6XX_GBIF_PERF_PWR_CNT_EN                        0x00003cc0
+#define REG_A6XX_GBIF_PERF_PWR_CNT_SEL                       0x00003cc3
+#define REG_A6XX_GBIF_PWR_CNT_HIGH0                          0x00003ccf
+#define REG_A6XX_GBIF_PWR_CNT_HIGH1                          0x00003cd0
+#define REG_A6XX_GBIF_PWR_CNT_HIGH2                          0x00003cd1
+#define REG_A6XX_GBIF_PWR_CNT_LOW0                           0x00003ccc
+#define REG_A6XX_GBIF_PWR_CNT_LOW1                           0x00003ccd
+#define REG_A6XX_GBIF_PWR_CNT_LOW2                           0x00003cce
+#define REG_A6XX_GBIF_QSB_SIDE0                              0x00003c03
+#define REG_A6XX_GBIF_QSB_SIDE1                              0x00003c04
+#define REG_A6XX_GBIF_QSB_SIDE2                              0x00003c05
+#define REG_A6XX_GBIF_QSB_SIDE3                              0x00003c06
+#define REG_A6XX_GBIF_SCACHE_CNTL0                           0x00003c01
+#define REG_A6XX_GBIF_SCACHE_CNTL1                           0x00003c02
+#define REG_A6XX_GMU_AHB_FENCE_RANGE_0                       0x00023b11
+#define REG_A6XX_GMU_AHB_FENCE_RANGE_1                       0x00023b12
+#define REG_A6XX_GMU_AHB_FENCE_STATUS                        0x00023b13
+#define REG_A6XX_GMU_AHB_FENCE_STATUS_CLR                    0x00023b14
+#define REG_A6XX_GMU_ALWAYS_ON_COUNTER_H                     0x0001f889
+#define REG_A6XX_GMU_ALWAYS_ON_COUNTER_L                     0x0001f888
+#define REG_A6XX_GMU_AO_AHB_FENCE_CTRL                       0x00023b10
+#define REG_A6XX_GMU_AO_HOST_INTERRUPT_CLR                   0x00023b04
+#define REG_A6XX_GMU_AO_HOST_INTERRUPT_MASK                  0x00023b06
+#define REG_A6XX_GMU_AO_HOST_INTERRUPT_STATUS                0x00023b05
+#define REG_A6XX_GMU_AO_INTERRUPT_EN                         0x00023b03
+#define REG_A6XX_GMU_AO_SPARE_CNTL                           0x00023b16
+#define REG_A6XX_GMU_BOOT_KMD_LM_HANDSHAKE                   0x0001f9f0
+#define REG_A6XX_GMU_BOOT_SLUMBER_OPTION                     0x0001cbf8
+#define REG_A6XX_GMU_CM3_BOOT_CONFIG                         0x0001f801
+#define REG_A6XX_GMU_CM3_CFG                                 0x0001f82d
+#define REG_A6XX_GMU_CM3_DTCM_START                          0x0001c400
+#define REG_A6XX_GMU_CM3_FW_BUSY                             0x0001f81a
+#define REG_A6XX_GMU_CM3_FW_INIT_RESULT                      0x0001f81c
+#define REG_A6XX_GMU_CM3_ITCM_START                          0x0001b400
+#define REG_A6XX_GMU_CM3_SYSRESET                            0x0001f800
+#define REG_A6XX_GMU_CORE_FW_VERSION                         0x0001d3f8
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_ENABLE             0x0001f840
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_SELECT_0           0x0001f841
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_SELECT_1           0x0001f842
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_0_H          0x0001f845
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_0_L          0x0001f844
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_1_H          0x0001f847
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_1_L          0x0001f846
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_2_H          0x0001f849
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_2_L          0x0001f848
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_3_H          0x0001f84b
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_3_L          0x0001f84a
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_4_H          0x0001f84d
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_4_L          0x0001f84c
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_5_H          0x0001f84f
+#define REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_5_L          0x0001f84e
+#define REG_A6XX_GMU_DCACHE_CONFIG                           0x0001f401
+#define REG_A6XX_GMU_DCVS_ACK_OPTION                         0x0001cbfc
+#define REG_A6XX_GMU_DCVS_BW_SETTING                         0x0001cbfe
+#define REG_A6XX_GMU_DCVS_PERF_SETTING                       0x0001cbfd
+#define REG_A6XX_GMU_DCVS_RETURN                             0x0001cbff
+#define REG_A6XX_GMU_GENERAL_0                               0x0001f9c5
+#define REG_A6XX_GMU_GENERAL_1                               0x0001f9c6
+#define REG_A6XX_GMU_GENERAL_6                               0x0001f9cb
+#define REG_A6XX_GMU_GENERAL_7                               0x0001f9cc
+#define REG_A6XX_GMU_GMU2HOST_INTR_CLR                       0x0001f991
+#define REG_A6XX_GMU_GMU2HOST_INTR_INFO                      0x0001f992
+#define REG_A6XX_GMU_GMU2HOST_INTR_MASK                      0x0001f993
+#define REG_A6XX_GMU_GMU2HOST_INTR_SET                       0x0001f990
+#define REG_A6XX_GMU_GMU_PWR_COL_KEEPALIVE                   0x0001f8c3
+#define REG_A6XX_GMU_GPU_NAP_CTRL                            0x0001f8e4
+#define REG_A6XX_GMU_GX_SPTPRAC_POWER_CONTROL                0x0001a881
+#define REG_A6XX_GMU_GX_VOTE_IDX                             0x0001cbf9
+#define REG_A6XX_GMU_HFI_CTRL_INIT                           0x0001f986
+#define REG_A6XX_GMU_HFI_CTRL_STATUS                         0x0001f980
+#define REG_A6XX_GMU_HFI_MMAP_ADDR                           0x0001f983
+#define REG_A6XX_GMU_HFI_QTBL_ADDR                           0x0001f985
+#define REG_A6XX_GMU_HFI_QTBL_INFO                           0x0001f984
+#define REG_A6XX_GMU_HFI_SFR_ADDR                            0x0001f982
+#define REG_A6XX_GMU_HFI_VERSION_INFO                        0x0001f981
+#define REG_A6XX_GMU_HOST2GMU_INTR_CLR                       0x0001f995
+#define REG_A6XX_GMU_HOST2GMU_INTR_EN_0                      0x0001f997
+#define REG_A6XX_GMU_HOST2GMU_INTR_EN_1                      0x0001f998
+#define REG_A6XX_GMU_HOST2GMU_INTR_EN_2                      0x0001f999
+#define REG_A6XX_GMU_HOST2GMU_INTR_EN_3                      0x0001f99a
+#define REG_A6XX_GMU_HOST2GMU_INTR_INFO_0                    0x0001f99b
+#define REG_A6XX_GMU_HOST2GMU_INTR_INFO_1                    0x0001f99c
+#define REG_A6XX_GMU_HOST2GMU_INTR_INFO_2                    0x0001f99d
+#define REG_A6XX_GMU_HOST2GMU_INTR_INFO_3                    0x0001f99e
+#define REG_A6XX_GMU_HOST2GMU_INTR_RAW_INFO                  0x0001f996
+#define REG_A6XX_GMU_HOST2GMU_INTR_SET                       0x0001f994
+#define REG_A6XX_GMU_ICACHE_CONFIG                           0x0001f400
+#define REG_A6XX_GMU_ISENSE_CTRL                             0x0001f95d
+#define REG_A6XX_GMU_LLM_GLM_SLEEP_CTRL                      0x0001f957
+#define REG_A6XX_GMU_LLM_GLM_SLEEP_STATUS                    0x0001f958
+#define REG_A6XX_GMU_MRC_GBIF_QOS_CTRL                       0x0001f50b
+#define REG_A6XX_GMU_MX_VOTE_IDX                             0x0001cbfa
+#define REG_A6XX_GMU_NMI_CONTROL_STATUS                      0x0001cbf0
+#define REG_A6XX_GMU_PWR_COL_INTER_FRAME_CTRL                0x0001f8c0
+#define REG_A6XX_GMU_PWR_COL_INTER_FRAME_HYST                0x0001f8c1
+#define REG_A6XX_GMU_PWR_COL_PREEMPT_KEEPALIVE               0x0001f8c4
+#define REG_A6XX_GMU_PWR_COL_SPTPRAC_HYST                    0x0001f8c2
+#define REG_A6XX_GMU_RBBM_INT_UNMASKED_STATUS                0x00023b15
+#define REG_A6XX_GMU_RPMH_CTRL                               0x0001f8e8
+#define REG_A6XX_GMU_RPMH_HYST_CTRL                          0x0001f8e9
+#define REG_A6XX_GMU_RSCC_CONTROL_ACK                        0x00023b08
+#define REG_A6XX_GMU_RSCC_CONTROL_REQ                        0x00023b07
+#define REG_A6XX_GMU_SPTPRAC_PWR_CLK_STATUS                  0x0001f8d0
+#define REG_A6XX_GMU_SYS_BUS_CONFIG                          0x0001f40f
+#define REG_A6XX_GPU_CC_GX_DOMAIN_MISC                       0x00024542
+#define REG_A6XX_GPU_CC_GX_GDSCR                             0x00024403
+#define REG_A6XX_GPU_CPR_FSM_CTL                             0x00026801
+#define REG_A6XX_GPU_CS_AMP_CALIBRATION_CONTROL1             0x00023157
+#define REG_A6XX_GPU_CS_AMP_CALIBRATION_CONTROL2             0x00022d58
+#define REG_A6XX_GPU_CS_AMP_CALIBRATION_CONTROL3             0x00022d78
+#define REG_A6XX_GPU_CS_AMP_CALIBRATION_DONE                 0x00023165
+#define REG_A6XX_GPU_CS_AMP_CALIBRATION_STATUS1_0            0x0002301d
+#define REG_A6XX_GPU_CS_AMP_CALIBRATION_STATUS1_2            0x0002301f
+#define REG_A6XX_GPU_CS_AMP_CALIBRATION_STATUS1_4            0x00023021
+#define REG_A6XX_GPU_CS_AMP_PERIOD_CTRL                      0x0002316d
+#define REG_A6XX_GPU_CS_A_SENSOR_CTRL_0                      0x00022d80
+#define REG_A6XX_GPU_CS_A_SENSOR_CTRL_2                      0x000422da
+#define REG_A6XX_GPU_CS_ENABLE_REG                           0x00023120
+#define REG_A6XX_GPU_CS_SENSOR_GENERAL_STATUS                0x0002301a
+#define REG_A6XX_GPU_GMU_AO_GMU_CGC_DELAY_CNTL               0x00023b0a
+#define REG_A6XX_GPU_GMU_AO_GMU_CGC_HYST_CNTL                0x00023b0b
+#define REG_A6XX_GPU_GMU_AO_GMU_CGC_MODE_CNTL                0x00023b09
+#define REG_A6XX_GPU_GMU_AO_GPU_CX_BUSY_MASK                 0x00023b0e
+#define REG_A6XX_GPU_GMU_AO_GPU_CX_BUSY_STATUS               0x00023b0c
+#define REG_A6XX_GPU_GMU_AO_GPU_CX_BUSY_STATUS2              0x00023b0d
+#define REG_A6XX_GPU_GMU_CX_GMU_CX_FALNEXT_INTF              0x0001f8f1
+#define REG_A6XX_GPU_GMU_CX_GMU_CX_FAL_INTF                  0x0001f8f0
+#define REG_A6XX_GPU_GMU_CX_GMU_ISENSE_CTRL                  0x0001f95d
+#define REG_A6XX_GPU_GMU_CX_GMU_PWR_COL_CP_MSG               0x0001f900
+#define REG_A6XX_GPU_GMU_CX_GMU_PWR_COL_CP_RESP              0x0001f901
+#define REG_A6XX_GPU_GMU_CX_GMU_PWR_THRESHOLD                0x0001f94d
+#define REG_A6XX_GPU_GMU_CX_GMU_RPMH_POWER_STATE             0x0001f8ec
+#define REG_A6XX_GPU_GMU_GX_SPTPRAC_CLOCK_CONTROL            0x0001a880
+#define REG_A6XX_GPU_RSCC_RSC_STATUS0_DRV0                   0x00000004
+#define REG_A6XX_GRAS_A2D_BLT_CNTL                           0x00008400
+#define REG_A6XX_GRAS_A2D_DEST_BR                            0x00008406
+#define REG_A6XX_GRAS_A2D_DEST_TL                            0x00008405
+#define REG_A6XX_GRAS_A2D_SCISSOR_BR                         0x0000840b
+#define REG_A6XX_GRAS_A2D_SCISSOR_TL                         0x0000840a
+#define REG_A6XX_GRAS_A2D_SRC_XMAX                           0x00008402
+#define REG_A6XX_GRAS_A2D_SRC_XMIN                           0x00008401
+#define REG_A6XX_GRAS_A2D_SRC_YMAX                           0x00008404
+#define REG_A6XX_GRAS_A2D_SRC_YMIN                           0x00008403
+#define REG_A6XX_GRAS_A2D_UNKNOWN_8407                       0x00008407
+#define REG_A6XX_GRAS_A2D_UNKNOWN_8408                       0x00008408
+#define REG_A6XX_GRAS_A2D_UNKNOWN_8409                       0x00008409
+#define REG_A6XX_GRAS_ADDR_MODE_CNTL                         0x00008601
+#define REG_A6XX_GRAS_CL_ARRAY_SIZE                          0x00008004
+#define REG_A6XX_GRAS_CL_CNTL                                0x00008000
+#define REG_A6XX_GRAS_CL_DS_CLIP_CULL_DISTANCE               0x00008002
+#define REG_A6XX_GRAS_CL_GS_CLIP_CULL_DISTANCE               0x00008003
+#define REG_A6XX_GRAS_CL_GUARDBAND_CLIP_ADJ                  0x00008006
+#define REG_A6XX_GRAS_CL_INTERP_CNTL                         0x00008005
+#define REG_A6XX_GRAS_CL_VIEWPORT(i0)                        (0x00008010 + 0x6*i0 )
+#define REG_A6XX_GRAS_CL_VIEWPORT_ZCLAMP(i0)                 (0x00008070 + 0x2*i0 )
+#define REG_A6XX_GRAS_CL_VS_CLIP_CULL_DISTANCE               0x00008001
+#define REG_A6XX_GRAS_DBG_ECO_CNTL                           0x00008600
+#define REG_A6XX_GRAS_LRZ_BUFFER_BASE                        0x00008103
+#define REG_A6XX_GRAS_LRZ_BUFFER_PITCH                       0x00008105
+#define REG_A6XX_GRAS_LRZ_CNTL                               0x00008100
+#define REG_A6XX_GRAS_LRZ_FAST_CLEAR_BUFFER_BASE             0x00008106
+#define REG_A6XX_GRAS_LRZ_MRT_BUFFER_INFO_0                  0x00008102
+#define REG_A6XX_GRAS_LRZ_PS_INPUT_CNTL                      0x00008101
+#define REG_A6XX_GRAS_LRZ_PS_SAMPLEFREQ_CNTL                 0x00008109
+#define REG_A6XX_GRAS_LRZ_VIEW_INFO                          0x0000810a
+#define REG_A6XX_GRAS_MODE_CNTL                              0x00008110
+#define REG_A6XX_GRAS_PERFCTR_LRZ_SEL(i0)                    (0x00008618 + 0x1*i0 )
+#define REG_A6XX_GRAS_PERFCTR_RAS_SEL(i0)                    (0x00008614 + 0x1*i0 )
+#define REG_A6XX_GRAS_PERFCTR_TSE_SEL(i0)                    (0x00008610 + 0x1*i0 )
+#define REG_A6XX_GRAS_SC_BIN_CNTL                            0x000080a1
+#define REG_A6XX_GRAS_SC_CNTL                                0x000080a0
+#define REG_A6XX_GRAS_SC_DEST_MSAA_CNTL                      0x000080a3
+#define REG_A6XX_GRAS_SC_MSAA_SAMPLE_POS_CNTL                0x000080a4
+#define REG_A6XX_GRAS_SC_PROGRAMMABLE_MSAA_POS_0             0x000080a5
+#define REG_A6XX_GRAS_SC_PROGRAMMABLE_MSAA_POS_1             0x000080a6
+#define REG_A6XX_GRAS_SC_RAS_MSAA_CNTL                       0x000080a2
+#define REG_A6XX_GRAS_SC_SCREEN_SCISSOR(i0)                  (0x000080b0 + 0x2*i0 )
+#define REG_A6XX_GRAS_SC_SCREEN_SCISSOR_CNTL                 0x000080af
+#define REG_A6XX_GRAS_SC_VIEWPORT_SCISSOR(i0)                (0x000080d0 + 0x2*i0 )
+#define REG_A6XX_GRAS_SC_WINDOW_SCISSOR_BR                   0x000080f1
+#define REG_A6XX_GRAS_SC_WINDOW_SCISSOR_TL                   0x000080f0
+#define REG_A6XX_GRAS_SU_CNTL                                0x00008090
+#define REG_A6XX_GRAS_SU_CONSERVATIVE_RAS_CNTL               0x00008099
+#define REG_A6XX_GRAS_SU_DEPTH_BUFFER_INFO                   0x00008098
+#define REG_A6XX_GRAS_SU_DEPTH_CNTL                          0x00008114
+#define REG_A6XX_GRAS_SU_DEPTH_PLANE_CNTL                    0x00008094
+#define REG_A6XX_GRAS_SU_DS_SIV_CNTL                         0x0000809d
+#define REG_A6XX_GRAS_SU_GS_SIV_CNTL                         0x0000809c
+#define REG_A6XX_GRAS_SU_PATH_RENDERING_CNTL                 0x0000809a
+#define REG_A6XX_GRAS_SU_POINT_MINMAX                        0x00008091
+#define REG_A6XX_GRAS_SU_POINT_SIZE                          0x00008092
+#define REG_A6XX_GRAS_SU_POLY_OFFSET_OFFSET                  0x00008096
+#define REG_A6XX_GRAS_SU_POLY_OFFSET_OFFSET_CLAMP            0x00008097
+#define REG_A6XX_GRAS_SU_POLY_OFFSET_SCALE                   0x00008095
+#define REG_A6XX_GRAS_SU_STENCIL_CNTL                        0x00008115
+#define REG_A6XX_GRAS_SU_VS_SIV_CNTL                         0x0000809b
+#define REG_A6XX_HLSQ_2D_EVENT_CMD                           0x0000bd80
+#define REG_A6XX_HLSQ_ADDR_MODE_CNTL                         0x0000be05
+#define REG_A6XX_HLSQ_BINDLESS_BASE(i0)                      (0x0000bb20 + 0x2*i0 )
+#define REG_A6XX_HLSQ_CONTEXT_SWITCH_GFX_PREEMPTION_SAFE_MODE 0x0000be22
+#define REG_A6XX_HLSQ_CS_BINDLESS_BASE(i0)                   (0x0000b9c0 + 0x2*i0 )
+#define REG_A6XX_HLSQ_CS_CTRL_REG1                           0x0000b9d0
+#define REG_A6XX_HLSQ_DBG_AHB_READ_APERTURE                  0x0000c800
+#define REG_A6XX_HLSQ_DBG_ECO_CNTL                           0x0000be04
+#define REG_A6XX_HLSQ_DBG_READ_SEL                           0x0000d000
+#define REG_A6XX_HLSQ_LOAD_STATE_FRAG_CMD                    0x0000b9a0
+#define REG_A6XX_HLSQ_LOAD_STATE_FRAG_DATA                   0x0000b9a3
+#define REG_A6XX_HLSQ_LOAD_STATE_FRAG_EXT_SRC_ADDR           0x0000b9a1
+#define REG_A6XX_HLSQ_LOAD_STATE_GEOM_CMD                    0x0000b820
+#define REG_A6XX_HLSQ_LOAD_STATE_GEOM_DATA                   0x0000b823
+#define REG_A6XX_HLSQ_LOAD_STATE_GEOM_EXT_SRC_ADDR           0x0000b821
+#define REG_A6XX_HLSQ_PERFCTR_HLSQ_SEL(i0)                   (0x0000be10 + 0x1*i0 )
+#define REG_A6XX_HLSQ_SHARED_CONSTS                          0x0000bb11
+#define REG_A6XX_HLSQ_UNKNOWN_B981                           0x0000b981
+#define REG_A6XX_HLSQ_UNKNOWN_BE00                           0x0000be00
+#define REG_A6XX_HLSQ_UNKNOWN_BE01                           0x0000be01
+#define REG_A6XX_HLSQ_UNKNOWN_BE08                           0x0000be08
+#define REG_A6XX_PC_2D_EVENT_CMD                             0x00009c00
+#define REG_A6XX_PC_ADDR_MODE_CNTL                           0x00009e01
+#define REG_A6XX_PC_AUTO_VERTEX_STRIDE                       0x00009e0a
+#define REG_A6XX_PC_CNTL                                     0x00009b00
+#define REG_A6XX_PC_CONTEXT_SWITCH_GFX_PREEMPTION_MODE       0x00009e72
+#define REG_A6XX_PC_DBG_ECO_CNTL                             0x00009e00
+#define REG_A6XX_PC_DGEN_RAST_CNTL                           0x00009981
+#define REG_A6XX_PC_DGEN_SO_CNTL                             0x00009808
+#define REG_A6XX_PC_DGEN_SU_CONSERVATIVE_RAS_CNTL            0x0000980a
+#define REG_A6XX_PC_DMA_BASE                                 0x00009e04
+#define REG_A6XX_PC_DMA_OFFSET                               0x00009e06
+#define REG_A6XX_PC_DMA_SIZE                                 0x00009e07
+#define REG_A6XX_PC_DRAWCALL_CNTL                            0x00009e0b
+#define REG_A6XX_PC_DRAWCALL_CNTL_OVERRIDE                   0x00009e1c
+#define REG_A6XX_PC_DRAWCALL_INSTANCE_NUM                    0x00009e0c
+#define REG_A6XX_PC_DRAWCALL_SIZE                            0x00009e0d
+#define REG_A6XX_PC_DRAW_INITIATOR                           0x00009840
+#define REG_A6XX_PC_DS_CNTL                                  0x00009b04
+#define REG_A6XX_PC_DS_PARAM                                 0x00009802
+#define REG_A6XX_PC_DVIS_STREAM_BIN_BASE                     0x00009e14
+#define REG_A6XX_PC_EVENT_INITIATOR                          0x00009842
+#define REG_A6XX_PC_GS_CNTL                                  0x00009b02
+#define REG_A6XX_PC_GS_PARAM_0                               0x00009b05
+#define REG_A6XX_PC_HS_CNTL                                  0x00009b03
+#define REG_A6XX_PC_HS_PARAM_0                               0x00009800
+#define REG_A6XX_PC_HS_PARAM_1                               0x00009801
+#define REG_A6XX_PC_KERNEL_INITIATOR                         0x00009841
+#define REG_A6XX_PC_MARKER                                   0x00009880
+#define REG_A6XX_PC_MODE_CNTL                                0x00009804
+#define REG_A6XX_PC_PERFCTR_PC_SEL(i0)                       (0x00009e34 + 0x1*i0 )
+#define REG_A6XX_PC_POWER_CNTL                               0x00009805
+#define REG_A6XX_PC_PRIMITIVE_CNTL_6                         0x00009b06
+#define REG_A6XX_PC_PS_CNTL                                  0x00009806
+#define REG_A6XX_PC_PVIS_STREAM_BIN_BASE                     0x00009e12
+#define REG_A6XX_PC_RAST_STREAM_CNTL                         0x00009980
+#define REG_A6XX_PC_RESTART_INDEX                            0x00009803
+#define REG_A6XX_PC_STEREO_RENDERING_CNTL                    0x00009b07
+#define REG_A6XX_PC_STEREO_RENDERING_VIEWMASK                0x00009b08
+#define REG_A6XX_PC_TESS_BASE                                0x00009e08
+#define REG_A6XX_PC_VIS_STREAM_CNTL                          0x00009e11
+#define REG_A6XX_PC_VS_CNTL                                  0x00009b01
+#define REG_A6XX_PDC_GPU_ENABLE_PDC                          0x00001140
+#define REG_A6XX_PDC_GPU_SEQ_MEM_0                           0x00000000
+#define REG_A6XX_PDC_GPU_SEQ_START_ADDR                      0x00001148
+#define REG_A6XX_PDC_GPU_TCS0_CMD0_ADDR                      0x00001544
+#define REG_A6XX_PDC_GPU_TCS0_CMD0_DATA                      0x00001545
+#define REG_A6XX_PDC_GPU_TCS0_CMD0_MSGID                     0x00001543
+#define REG_A6XX_PDC_GPU_TCS0_CMD_ENABLE_BANK                0x00001541
+#define REG_A6XX_PDC_GPU_TCS0_CMD_WAIT_FOR_CMPL_BANK         0x00001542
+#define REG_A6XX_PDC_GPU_TCS0_CONTROL                        0x00001540
+#define REG_A6XX_PDC_GPU_TCS1_CMD0_ADDR                      0x00001576
+#define REG_A6XX_PDC_GPU_TCS1_CMD0_DATA                      0x00001577
+#define REG_A6XX_PDC_GPU_TCS1_CMD0_MSGID                     0x00001575
+#define REG_A6XX_PDC_GPU_TCS1_CMD_ENABLE_BANK                0x00001573
+#define REG_A6XX_PDC_GPU_TCS1_CMD_WAIT_FOR_CMPL_BANK         0x00001574
+#define REG_A6XX_PDC_GPU_TCS1_CONTROL                        0x00001572
+#define REG_A6XX_PDC_GPU_TCS2_CMD0_ADDR                      0x000015a8
+#define REG_A6XX_PDC_GPU_TCS2_CMD0_DATA                      0x000015a9
+#define REG_A6XX_PDC_GPU_TCS2_CMD0_MSGID                     0x000015a7
+#define REG_A6XX_PDC_GPU_TCS2_CMD_ENABLE_BANK                0x000015a5
+#define REG_A6XX_PDC_GPU_TCS2_CMD_WAIT_FOR_CMPL_BANK         0x000015a6
+#define REG_A6XX_PDC_GPU_TCS2_CONTROL                        0x000015a4
+#define REG_A6XX_PDC_GPU_TCS3_CMD0_ADDR                      0x000015da
+#define REG_A6XX_PDC_GPU_TCS3_CMD0_DATA                      0x000015db
+#define REG_A6XX_PDC_GPU_TCS3_CMD0_MSGID                     0x000015d9
+#define REG_A6XX_PDC_GPU_TCS3_CMD_ENABLE_BANK                0x000015d7
+#define REG_A6XX_PDC_GPU_TCS3_CMD_WAIT_FOR_CMPL_BANK         0x000015d8
+#define REG_A6XX_PDC_GPU_TCS3_CONTROL                        0x000015d6
+#define REG_A6XX_RBBM_BLOCK_SW_RESET_CMD                     0x00000045
+#define REG_A6XX_RBBM_BLOCK_SW_RESET_CMD2                    0x00000046
+#define REG_A6XX_RBBM_CLOCK_CNTL                             0x000000ae
+#define REG_A6XX_RBBM_CLOCK_CNTL2_RAC                        0x00000105
+#define REG_A6XX_RBBM_CLOCK_CNTL2_RB0                        0x000000f4
+#define REG_A6XX_RBBM_CLOCK_CNTL2_RB1                        0x000000f5
+#define REG_A6XX_RBBM_CLOCK_CNTL2_RB2                        0x000000f6
+#define REG_A6XX_RBBM_CLOCK_CNTL2_RB3                        0x000000f7
+#define REG_A6XX_RBBM_CLOCK_CNTL2_SP0                        0x000000b4
+#define REG_A6XX_RBBM_CLOCK_CNTL2_SP1                        0x000000b5
+#define REG_A6XX_RBBM_CLOCK_CNTL2_SP2                        0x000000b6
+#define REG_A6XX_RBBM_CLOCK_CNTL2_SP3                        0x000000b7
+#define REG_A6XX_RBBM_CLOCK_CNTL2_TP0                        0x000000c4
+#define REG_A6XX_RBBM_CLOCK_CNTL2_TP1                        0x000000c5
+#define REG_A6XX_RBBM_CLOCK_CNTL2_TP2                        0x000000c6
+#define REG_A6XX_RBBM_CLOCK_CNTL2_TP3                        0x000000c7
+#define REG_A6XX_RBBM_CLOCK_CNTL2_UCHE                       0x0000010c
+#define REG_A6XX_RBBM_CLOCK_CNTL3_TP0                        0x000000c8
+#define REG_A6XX_RBBM_CLOCK_CNTL3_TP1                        0x000000c9
+#define REG_A6XX_RBBM_CLOCK_CNTL3_TP2                        0x000000ca
+#define REG_A6XX_RBBM_CLOCK_CNTL3_TP3                        0x000000cb
+#define REG_A6XX_RBBM_CLOCK_CNTL3_UCHE                       0x0000010d
+#define REG_A6XX_RBBM_CLOCK_CNTL4_TP0                        0x000000cc
+#define REG_A6XX_RBBM_CLOCK_CNTL4_TP1                        0x000000cd
+#define REG_A6XX_RBBM_CLOCK_CNTL4_TP2                        0x000000ce
+#define REG_A6XX_RBBM_CLOCK_CNTL4_TP3                        0x000000cf
+#define REG_A6XX_RBBM_CLOCK_CNTL4_UCHE                       0x0000010e
+#define REG_A6XX_RBBM_CLOCK_CNTL_CCU0                        0x000000f8
+#define REG_A6XX_RBBM_CLOCK_CNTL_CCU1                        0x000000f9
+#define REG_A6XX_RBBM_CLOCK_CNTL_CCU2                        0x000000fa
+#define REG_A6XX_RBBM_CLOCK_CNTL_CCU3                        0x000000fb
+#define REG_A6XX_RBBM_CLOCK_CNTL_FCHE                        0x00000123
+#define REG_A6XX_RBBM_CLOCK_CNTL_GLC                         0x0000012b
+#define REG_A6XX_RBBM_CLOCK_CNTL_GMU_GX                      0x00000118
+#define REG_A6XX_RBBM_CLOCK_CNTL_MHUB                        0x00000126
+#define REG_A6XX_RBBM_CLOCK_CNTL_RAC                         0x00000104
+#define REG_A6XX_RBBM_CLOCK_CNTL_RB0                         0x000000f0
+#define REG_A6XX_RBBM_CLOCK_CNTL_RB1                         0x000000f1
+#define REG_A6XX_RBBM_CLOCK_CNTL_RB2                         0x000000f2
+#define REG_A6XX_RBBM_CLOCK_CNTL_RB3                         0x000000f3
+#define REG_A6XX_RBBM_CLOCK_CNTL_SP0                         0x000000b0
+#define REG_A6XX_RBBM_CLOCK_CNTL_SP1                         0x000000b1
+#define REG_A6XX_RBBM_CLOCK_CNTL_SP2                         0x000000b2
+#define REG_A6XX_RBBM_CLOCK_CNTL_SP3                         0x000000b3
+#define REG_A6XX_RBBM_CLOCK_CNTL_TEX_FCHE                    0x00000120
+#define REG_A6XX_RBBM_CLOCK_CNTL_TP0                         0x000000c0
+#define REG_A6XX_RBBM_CLOCK_CNTL_TP1                         0x000000c1
+#define REG_A6XX_RBBM_CLOCK_CNTL_TP2                         0x000000c2
+#define REG_A6XX_RBBM_CLOCK_CNTL_TP3                         0x000000c3
+#define REG_A6XX_RBBM_CLOCK_CNTL_TSE_RAS_RBBM                0x00000108
+#define REG_A6XX_RBBM_CLOCK_CNTL_UCHE                        0x0000010b
+#define REG_A6XX_RBBM_CLOCK_DELAY2_TP0                       0x000000d4
+#define REG_A6XX_RBBM_CLOCK_DELAY2_TP1                       0x000000d5
+#define REG_A6XX_RBBM_CLOCK_DELAY2_TP2                       0x000000d6
+#define REG_A6XX_RBBM_CLOCK_DELAY2_TP3                       0x000000d7
+#define REG_A6XX_RBBM_CLOCK_DELAY3_TP0                       0x000000d8
+#define REG_A6XX_RBBM_CLOCK_DELAY3_TP1                       0x000000d9
+#define REG_A6XX_RBBM_CLOCK_DELAY3_TP2                       0x000000da
+#define REG_A6XX_RBBM_CLOCK_DELAY3_TP3                       0x000000db
+#define REG_A6XX_RBBM_CLOCK_DELAY4_TP0                       0x000000dc
+#define REG_A6XX_RBBM_CLOCK_DELAY4_TP1                       0x000000dd
+#define REG_A6XX_RBBM_CLOCK_DELAY4_TP2                       0x000000de
+#define REG_A6XX_RBBM_CLOCK_DELAY4_TP3                       0x000000df
+#define REG_A6XX_RBBM_CLOCK_DELAY_FCHE                       0x00000124
+#define REG_A6XX_RBBM_CLOCK_DELAY_GLC                        0x00000129
+#define REG_A6XX_RBBM_CLOCK_DELAY_GMU_GX                     0x00000119
+#define REG_A6XX_RBBM_CLOCK_DELAY_GPC                        0x00000115
+#define REG_A6XX_RBBM_CLOCK_DELAY_HLSQ                       0x0000011c
+#define REG_A6XX_RBBM_CLOCK_DELAY_HLSQ_2                     0x00000117
+#define REG_A6XX_RBBM_CLOCK_DELAY_MHUB                       0x00000127
+#define REG_A6XX_RBBM_CLOCK_DELAY_RAC                        0x00000106
+#define REG_A6XX_RBBM_CLOCK_DELAY_SP0                        0x000000b8
+#define REG_A6XX_RBBM_CLOCK_DELAY_SP1                        0x000000b9
+#define REG_A6XX_RBBM_CLOCK_DELAY_SP2                        0x000000ba
+#define REG_A6XX_RBBM_CLOCK_DELAY_SP3                        0x000000bb
+#define REG_A6XX_RBBM_CLOCK_DELAY_TEX_FCHE                   0x00000121
+#define REG_A6XX_RBBM_CLOCK_DELAY_TP0                        0x000000d0
+#define REG_A6XX_RBBM_CLOCK_DELAY_TP1                        0x000000d1
+#define REG_A6XX_RBBM_CLOCK_DELAY_TP2                        0x000000d2
+#define REG_A6XX_RBBM_CLOCK_DELAY_TP3                        0x000000d3
+#define REG_A6XX_RBBM_CLOCK_DELAY_TSE_RAS_RBBM               0x00000109
+#define REG_A6XX_RBBM_CLOCK_DELAY_UCHE                       0x0000010f
+#define REG_A6XX_RBBM_CLOCK_DELAY_VFD                        0x00000112
+#define REG_A6XX_RBBM_CLOCK_HYST2_TP0                        0x000000e4
+#define REG_A6XX_RBBM_CLOCK_HYST2_TP1                        0x000000e5
+#define REG_A6XX_RBBM_CLOCK_HYST2_TP2                        0x000000e6
+#define REG_A6XX_RBBM_CLOCK_HYST2_TP3                        0x000000e7
+#define REG_A6XX_RBBM_CLOCK_HYST3_TP0                        0x000000e8
+#define REG_A6XX_RBBM_CLOCK_HYST3_TP1                        0x000000e9
+#define REG_A6XX_RBBM_CLOCK_HYST3_TP2                        0x000000ea
+#define REG_A6XX_RBBM_CLOCK_HYST3_TP3                        0x000000eb
+#define REG_A6XX_RBBM_CLOCK_HYST4_TP0                        0x000000ec
+#define REG_A6XX_RBBM_CLOCK_HYST4_TP1                        0x000000ed
+#define REG_A6XX_RBBM_CLOCK_HYST4_TP2                        0x000000ee
+#define REG_A6XX_RBBM_CLOCK_HYST4_TP3                        0x000000ef
+#define REG_A6XX_RBBM_CLOCK_HYST_FCHE                        0x00000125
+#define REG_A6XX_RBBM_CLOCK_HYST_GLC                         0x0000012a
+#define REG_A6XX_RBBM_CLOCK_HYST_GMU_GX                      0x0000011a
+#define REG_A6XX_RBBM_CLOCK_HYST_GPC                         0x00000116
+#define REG_A6XX_RBBM_CLOCK_HYST_HLSQ                        0x0000011d
+#define REG_A6XX_RBBM_CLOCK_HYST_MHUB                        0x00000128
+#define REG_A6XX_RBBM_CLOCK_HYST_RAC                         0x00000107
+#define REG_A6XX_RBBM_CLOCK_HYST_RB_CCU0                     0x00000100
+#define REG_A6XX_RBBM_CLOCK_HYST_RB_CCU1                     0x00000101
+#define REG_A6XX_RBBM_CLOCK_HYST_RB_CCU2                     0x00000102
+#define REG_A6XX_RBBM_CLOCK_HYST_RB_CCU3                     0x00000103
+#define REG_A6XX_RBBM_CLOCK_HYST_SP0                         0x000000bc
+#define REG_A6XX_RBBM_CLOCK_HYST_SP1                         0x000000bd
+#define REG_A6XX_RBBM_CLOCK_HYST_SP2                         0x000000be
+#define REG_A6XX_RBBM_CLOCK_HYST_SP3                         0x000000bf
+#define REG_A6XX_RBBM_CLOCK_HYST_TEX_FCHE                    0x00000122
+#define REG_A6XX_RBBM_CLOCK_HYST_TP0                         0x000000e0
+#define REG_A6XX_RBBM_CLOCK_HYST_TP1                         0x000000e1
+#define REG_A6XX_RBBM_CLOCK_HYST_TP2                         0x000000e2
+#define REG_A6XX_RBBM_CLOCK_HYST_TP3                         0x000000e3
+#define REG_A6XX_RBBM_CLOCK_HYST_TSE_RAS_RBBM                0x0000010a
+#define REG_A6XX_RBBM_CLOCK_HYST_UCHE                        0x00000110
+#define REG_A6XX_RBBM_CLOCK_HYST_VFD                         0x00000113
+#define REG_A6XX_RBBM_CLOCK_MODE_GPC                         0x00000114
+#define REG_A6XX_RBBM_CLOCK_MODE_HLSQ                        0x0000011b
+#define REG_A6XX_RBBM_CLOCK_MODE_VFD                         0x00000111
+#define REG_A6XX_RBBM_GBIF_CLIENT_QOS_CNTL                   0x00000011
+#define REG_A6XX_RBBM_GBIF_HALT                              0x00000016
+#define REG_A6XX_RBBM_GBIF_HALT_ACK                          0x00000017
+#define REG_A6XX_RBBM_GPR0_CNTL                              0x00000018
+#define REG_A6XX_RBBM_INTERFACE_HANG_INT_CNTL                0x0000001f
+#define REG_A6XX_RBBM_INT_0_MASK                             0x00000038
+#define REG_A6XX_RBBM_INT_0_STATUS                           0x00000201
+#define REG_A6XX_RBBM_INT_CLEAR_CMD                          0x00000037
+#define REG_A6XX_RBBM_ISDB_CNT                               0x00000533
+#define REG_A6XX_RBBM_LPAC_GBIF_CLIENT_QOS_CNTL              0x000005ff
+#define REG_A6XX_RBBM_NC_MODE_CNTL                           0x00000534
+#define REG_A6XX_RBBM_PERFCTR_CCU(i0)                        (0x0000045c + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_CMP(i0)                        (0x000004f2 + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_CNTL                           0x00000500
+#define REG_A6XX_RBBM_PERFCTR_CP(i0)                         (0x00000400 + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_GPU_BUSY_MASKED                0x0000050b
+#define REG_A6XX_RBBM_PERFCTR_HLSQ(i0)                       (0x00000444 + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_LOAD_CMD0                      0x00000501
+#define REG_A6XX_RBBM_PERFCTR_LOAD_CMD1                      0x00000502
+#define REG_A6XX_RBBM_PERFCTR_LOAD_CMD2                      0x00000503
+#define REG_A6XX_RBBM_PERFCTR_LOAD_CMD3                      0x00000504
+#define REG_A6XX_RBBM_PERFCTR_LOAD_VALUE                     0x00000505
+#define REG_A6XX_RBBM_PERFCTR_LRZ(i0)                        (0x000004ea + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_PC(i0)                         (0x00000424 + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_RAS(i0)                        (0x0000046e + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_RB(i0)                         (0x000004d6 + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_RBBM(i0)                       (0x0000041c + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_RBBM_SEL(i0)                   (0x00000507 + 0x1*i0 )
+#define REG_A6XX_RBBM_PERFCTR_SP(i0)                         (0x000004a6 + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_SRAM_INIT_CMD                  0x0000050e
+#define REG_A6XX_RBBM_PERFCTR_SRAM_INIT_STATUS               0x0000050f
+#define REG_A6XX_RBBM_PERFCTR_TP(i0)                         (0x0000048e + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_TSE(i0)                        (0x00000466 + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_UCHE(i0)                       (0x00000476 + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_VFD(i0)                        (0x00000434 + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_VPC(i0)                        (0x00000450 + 0x2*i0 )
+#define REG_A6XX_RBBM_PERFCTR_VSC(i0)                        (0x000004e6 + 0x2*i0 )
+#define REG_A6XX_RBBM_PIPESTAT_CINVOCATIONS                  0x0000054e
+#define REG_A6XX_RBBM_PIPESTAT_CPRIMITIVES                   0x00000550
+#define REG_A6XX_RBBM_PIPESTAT_CSINVOCATIONS                 0x00000554
+#define REG_A6XX_RBBM_PIPESTAT_DSINVOCATIONS                 0x00000548
+#define REG_A6XX_RBBM_PIPESTAT_GSINVOCATIONS                 0x0000054a
+#define REG_A6XX_RBBM_PIPESTAT_GSPRIMITIVES                  0x0000054c
+#define REG_A6XX_RBBM_PIPESTAT_HSINVOCATIONS                 0x00000546
+#define REG_A6XX_RBBM_PIPESTAT_IAPRIMITIVES                  0x00000542
+#define REG_A6XX_RBBM_PIPESTAT_IAVERTICES                    0x00000540
+#define REG_A6XX_RBBM_PIPESTAT_PSINVOCATIONS                 0x00000552
+#define REG_A6XX_RBBM_PIPESTAT_VSINVOCATIONS                 0x00000544
+#define REG_A6XX_RBBM_RAC_THRESHOLD_CNT                      0x00000044
+#define REG_A6XX_RBBM_SECVID_TRUST_CNTL                      0x0000f400
+#define REG_A6XX_RBBM_SECVID_TSB_ADDR_MODE_CNTL              0x0000f810
+#define REG_A6XX_RBBM_SECVID_TSB_CNTL                        0x0000f803
+#define REG_A6XX_RBBM_SECVID_TSB_TRUSTED_BASE                0x0000f800
+#define REG_A6XX_RBBM_SECVID_TSB_TRUSTED_SIZE                0x0000f802
+#define REG_A6XX_RBBM_SP_HYST_CNT                            0x00000042
+#define REG_A6XX_RBBM_STATUS                                 0x00000210
+#define REG_A6XX_RBBM_STATUS1                                0x00000211
+#define REG_A6XX_RBBM_STATUS2                                0x00000212
+#define REG_A6XX_RBBM_STATUS3                                0x00000213
+#define REG_A6XX_RBBM_SW_RESET_CMD                           0x00000043
+#define REG_A6XX_RBBM_VBIF_CLIENT_QOS_CNTL                   0x00000010
+#define REG_A6XX_RBBM_VBIF_GX_RESET_STATUS                   0x00000215
+#define REG_A6XX_RBBM_WAIT_FOR_GPU_IDLE_CMD                  0x0000001c
+#define REG_A6XX_RBBM_WAIT_IDLE_CLOCKS_CNTL                  0x0000001a
+#define REG_A6XX_RBBM_WAIT_IDLE_CLOCKS_CNTL2                 0x0000001b
+#define REG_A6XX_RB_A2D_BLT_CNTL                             0x00008c00
+#define REG_A6XX_RB_A2D_CLEAR_COLOR_DW0                      0x00008c2c
+#define REG_A6XX_RB_A2D_CLEAR_COLOR_DW1                      0x00008c2d
+#define REG_A6XX_RB_A2D_CLEAR_COLOR_DW2                      0x00008c2e
+#define REG_A6XX_RB_A2D_CLEAR_COLOR_DW3                      0x00008c2f
+#define REG_A6XX_RB_A2D_DEST_BUFFER_BASE                     0x00008c18
+#define REG_A6XX_RB_A2D_DEST_BUFFER_BASE_1                   0x00008c1b
+#define REG_A6XX_RB_A2D_DEST_BUFFER_BASE_2                   0x00008c1e
+#define REG_A6XX_RB_A2D_DEST_BUFFER_INFO                     0x00008c17
+#define REG_A6XX_RB_A2D_DEST_BUFFER_PITCH                    0x00008c1a
+#define REG_A6XX_RB_A2D_DEST_BUFFER_PITCH_1                  0x00008c1d
+#define REG_A6XX_RB_A2D_DEST_FLAG_BUFFER_BASE                0x00008c20
+#define REG_A6XX_RB_A2D_DEST_FLAG_BUFFER_BASE_1              0x00008c23
+#define REG_A6XX_RB_A2D_DEST_FLAG_BUFFER_PITCH               0x00008c22
+#define REG_A6XX_RB_A2D_DEST_FLAG_BUFFER_PITCH_1             0x00008c25
+#define REG_A6XX_RB_A2D_PIXEL_CNTL                           0x00008c01
+#define REG_A6XX_RB_ADDR_MODE_CNTL                           0x00008e05
+#define REG_A6XX_RB_ALPHA_TEST_CNTL                          0x00008864
+#define REG_A6XX_RB_BLEND_CNTL                               0x00008865
+#define REG_A6XX_RB_BLEND_CONSTANT_ALPHA_FP32                0x00008863
+#define REG_A6XX_RB_BLEND_CONSTANT_BLUE_FP32                 0x00008862
+#define REG_A6XX_RB_BLEND_CONSTANT_GREEN_FP32                0x00008861
+#define REG_A6XX_RB_BLEND_CONSTANT_RED_FP32                  0x00008860
+#define REG_A6XX_RB_CCU_CNTL                                 0x00008e07
+#define REG_A6XX_RB_CMP_DBG_ECO_CNTL                         0x00008e28
+#define REG_A6XX_RB_CNTL                                     0x00008800
+#define REG_A6XX_RB_COLOR_FLAG_BUFFER(i0)                    (0x00008903 + 0x3*i0 )
+#define REG_A6XX_RB_CONTEXT_SWITCH_GMEM_SAVE_RESTORE_ADDR    0x00008e51
+#define REG_A6XX_RB_CONTEXT_SWITCH_GMEM_SAVE_RESTORE_ENABLE  0x00008e50
+#define REG_A6XX_RB_DBG_ECO_CNTL                             0x00008e04
+#define REG_A6XX_RB_DEPTH_BOUND_MAX                          0x00008879
+#define REG_A6XX_RB_DEPTH_BOUND_MIN                          0x00008878
+#define REG_A6XX_RB_DEPTH_BUFFER_ARRAY_PITCH                 0x00008874
+#define REG_A6XX_RB_DEPTH_BUFFER_BASE                        0x00008875
+#define REG_A6XX_RB_DEPTH_BUFFER_INFO                        0x00008872
+#define REG_A6XX_RB_DEPTH_BUFFER_PITCH                       0x00008873
+#define REG_A6XX_RB_DEPTH_CNTL                               0x00008871
+#define REG_A6XX_RB_DEPTH_FLAG_BUFFER_BASE                   0x00008900
+#define REG_A6XX_RB_DEPTH_FLAG_BUFFER_PITCH                  0x00008902
+#define REG_A6XX_RB_DEPTH_GMEM_BASE                          0x00008877
+#define REG_A6XX_RB_DEPTH_PLANE_CNTL                         0x00008870
+#define REG_A6XX_RB_DEST_MSAA_CNTL                           0x00008803
+#define REG_A6XX_RB_DITHER_CNTL                              0x0000880e
+#define REG_A6XX_RB_INTERP_CNTL                              0x00008809
+#define REG_A6XX_RB_LRZ_CNTL                                 0x00008898
+#define REG_A6XX_RB_MODE_CNTL                                0x00008811
+#define REG_A6XX_RB_MRT(i0)                                  (0x00008820 + 0x8*i0 )
+#define REG_A6XX_RB_MSAA_SAMPLE_POS_CNTL                     0x00008804
+#define REG_A6XX_RB_NC_MODE_CNTL                             0x00008e08
+#define REG_A6XX_RB_PERFCTR_CCU_SEL(i0)                      (0x00008e18 + 0x1*i0 )
+#define REG_A6XX_RB_PERFCTR_CMP_SEL(i0)                      (0x00008e2c + 0x1*i0 )
+#define REG_A6XX_RB_PERFCTR_RB_SEL(i0)                       (0x00008e10 + 0x1*i0 )
+#define REG_A6XX_RB_PROGRAMMABLE_MSAA_POS_0                  0x00008805
+#define REG_A6XX_RB_PROGRAMMABLE_MSAA_POS_1                  0x00008806
+#define REG_A6XX_RB_PS_INPUT_CNTL                            0x0000880a
+#define REG_A6XX_RB_PS_MRT_CNTL                              0x0000880c
+#define REG_A6XX_RB_PS_OUTPUT_CNTL                           0x0000880b
+#define REG_A6XX_RB_PS_OUTPUT_MASK                           0x0000880d
+#define REG_A6XX_RB_PS_SAMPLEFREQ_CNTL                       0x00008810
+#define REG_A6XX_RB_RAS_MSAA_CNTL                            0x00008802
+#define REG_A6XX_RB_RBP_CNTL                                 0x00008e01
+#define REG_A6XX_RB_RENDER_CNTL                              0x00008801
+#define REG_A6XX_RB_RESOLVE_CLEAR_COLOR_DW0                  0x000088df
+#define REG_A6XX_RB_RESOLVE_CLEAR_COLOR_DW1                  0x000088e0
+#define REG_A6XX_RB_RESOLVE_CLEAR_COLOR_DW2                  0x000088e1
+#define REG_A6XX_RB_RESOLVE_CLEAR_COLOR_DW3                  0x000088e2
+#define REG_A6XX_RB_RESOLVE_CNTL_0                           0x000088d0
+#define REG_A6XX_RB_RESOLVE_CNTL_1                           0x000088d1
+#define REG_A6XX_RB_RESOLVE_CNTL_2                           0x000088d2
+#define REG_A6XX_RB_RESOLVE_CNTL_3                           0x000088d3
+#define REG_A6XX_RB_RESOLVE_GMEM_BUFFER_BASE                 0x000088d6
+#define REG_A6XX_RB_RESOLVE_GMEM_BUFFER_INFO                 0x000088d5
+#define REG_A6XX_RB_RESOLVE_OPERATION                        0x000088e3
+#define REG_A6XX_RB_RESOLVE_SYSTEM_BUFFER_ARRAY_PITCH        0x000088db
+#define REG_A6XX_RB_RESOLVE_SYSTEM_BUFFER_BASE               0x000088d8
+#define REG_A6XX_RB_RESOLVE_SYSTEM_BUFFER_INFO               0x000088d7
+#define REG_A6XX_RB_RESOLVE_SYSTEM_BUFFER_PITCH              0x000088da
+#define REG_A6XX_RB_RESOLVE_SYSTEM_FLAG_BUFFER_BASE          0x000088dc
+#define REG_A6XX_RB_RESOLVE_SYSTEM_FLAG_BUFFER_PITCH         0x000088de
+#define REG_A6XX_RB_RESOLVE_WINDOW_OFFSET                    0x000088d4
+#define REG_A6XX_RB_SAMPLE_COUNTER_BASE                      0x00008927
+#define REG_A6XX_RB_SAMPLE_COUNTER_CNTL                      0x00008891
+#define REG_A6XX_RB_SRGB_CNTL                                0x0000880f
+#define REG_A6XX_RB_STENCIL_BUFFER_ARRAY_PITCH               0x00008883
+#define REG_A6XX_RB_STENCIL_BUFFER_BASE                      0x00008884
+#define REG_A6XX_RB_STENCIL_BUFFER_INFO                      0x00008881
+#define REG_A6XX_RB_STENCIL_BUFFER_PITCH                     0x00008882
+#define REG_A6XX_RB_STENCIL_CNTL                             0x00008880
+#define REG_A6XX_RB_STENCIL_GMEM_BASE                        0x00008886
+#define REG_A6XX_RB_STENCIL_MASK                             0x00008888
+#define REG_A6XX_RB_STENCIL_REF_CNTL                         0x00008887
+#define REG_A6XX_RB_STENCIL_WRITE_MASK                       0x00008889
+#define REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_CD                    0x00008e3d
+#define REG_A6XX_RB_SUB_BLOCK_SEL_CNTL_HOST                  0x00008e3b
+#define REG_A6XX_RB_UNKNOWN_8818                             0x00008818
+#define REG_A6XX_RB_UNKNOWN_8819                             0x00008819
+#define REG_A6XX_RB_UNKNOWN_881A                             0x0000881a
+#define REG_A6XX_RB_UNKNOWN_881B                             0x0000881b
+#define REG_A6XX_RB_UNKNOWN_881C                             0x0000881c
+#define REG_A6XX_RB_UNKNOWN_881D                             0x0000881d
+#define REG_A6XX_RB_UNKNOWN_881E                             0x0000881e
+#define REG_A6XX_RB_UNKNOWN_88F0                             0x000088f0
+#define REG_A6XX_RB_UNKNOWN_8A00                             0x00008a00
+#define REG_A6XX_RB_UNKNOWN_8A10                             0x00008a10
+#define REG_A6XX_RB_UNKNOWN_8A20                             0x00008a20
+#define REG_A6XX_RB_UNKNOWN_8A30                             0x00008a30
+#define REG_A6XX_RB_UNK_FLAG_BUFFER_BASE                     0x000088f1
+#define REG_A6XX_RB_UNK_FLAG_BUFFER_PITCH                    0x000088f3
+#define REG_A6XX_RB_VIEWPORT_ZCLAMP_MAX                      0x000088c1
+#define REG_A6XX_RB_VIEWPORT_ZCLAMP_MIN                      0x000088c0
+#define REG_A6XX_RB_VRS_CONFIG                               0x000088f4
+#define REG_A6XX_RB_WINDOW_OFFSET                            0x00008890
+#define REG_A6XX_RSCC_HIDDEN_TCS_CMD0_ADDR                   0x0000000d
+#define REG_A6XX_RSCC_HIDDEN_TCS_CMD0_DATA                   0x0000000e
+#define REG_A6XX_RSCC_OVERRIDE_START_ADDR                    0x00000100
+#define REG_A6XX_RSCC_PDC_MATCH_VALUE_HI                     0x0000000a
+#define REG_A6XX_RSCC_PDC_MATCH_VALUE_LO                     0x00000009
+#define REG_A6XX_RSCC_PDC_SEQ_START_ADDR                     0x00000008
+#define REG_A6XX_RSCC_PDC_SLAVE_ID_DRV0                      0x0000000b
+#define REG_A6XX_RSCC_SEQ_BUSY_DRV0                          0x00000101
+#define REG_A6XX_RSCC_SEQ_MEM_0_DRV0                         0x00000180
+#define REG_A6XX_RSCC_TCS0_DRV0_STATUS                       0x00000346
+#define REG_A6XX_RSCC_TCS1_DRV0_STATUS                       0x000003ee
+#define REG_A6XX_RSCC_TCS2_DRV0_STATUS                       0x00000496
+#define REG_A6XX_RSCC_TCS3_DRV0_STATUS                       0x0000053e
+#define REG_A6XX_RSCC_TIMESTAMP_UNIT0_TIMESTAMP_H_DRV0       0x00000083
+#define REG_A6XX_RSCC_TIMESTAMP_UNIT0_TIMESTAMP_L_DRV0       0x00000082
+#define REG_A6XX_RSCC_TIMESTAMP_UNIT1_EN_DRV0                0x00000089
+#define REG_A6XX_RSCC_TIMESTAMP_UNIT1_OUTPUT_DRV0            0x0000008c
+#define REG_A6XX_SP_A2D_OUTPUT_INFO                          0x0000acc0
+#define REG_A6XX_SP_ADDR_MODE_CNTL                           0x0000ae01
+#define REG_A6XX_SP_BLEND_CNTL                               0x0000a989
+#define REG_A6XX_SP_CHICKEN_BITS                             0x0000ae03
+#define REG_A6XX_SP_CONTEXT_SWITCH_GFX_PREEMPTION_SAFE_MODE  0x0000ae52
+#define REG_A6XX_SP_CS_BASE                                  0x0000a9b4
+#define REG_A6XX_SP_CS_BINDLESS_BASE(i0)                     (0x0000a9e8 + 0x2*i0 )
+#define REG_A6XX_SP_CS_BINDLESS_INVALIDATE                   0x0000a9c0
+#define REG_A6XX_SP_CS_BOOLEAN_CF_MASK                       0x0000a9b2
+#define REG_A6XX_SP_CS_CNTL_0                                0x0000a9b0
+#define REG_A6XX_SP_CS_CNTL_1                                0x0000a9b1
+#define REG_A6XX_SP_CS_CONFIG                                0x0000a9bb
+#define REG_A6XX_SP_CS_CONST_CONFIG                          0x0000b987
+#define REG_A6XX_SP_CS_CONST_CONFIG_0                        0x0000b997
+#define REG_A6XX_SP_CS_HYSTERESIS                            0x0000a9be
+#define REG_A6XX_SP_CS_INSTR_SIZE                            0x0000a9bc
+#define REG_A6XX_SP_CS_KERNEL_GROUP_X                        0x0000b999
+#define REG_A6XX_SP_CS_KERNEL_GROUP_Y                        0x0000b99a
+#define REG_A6XX_SP_CS_KERNEL_GROUP_Z                        0x0000b99b
+#define REG_A6XX_SP_CS_NDRANGE_0                             0x0000b990
+#define REG_A6XX_SP_CS_NDRANGE_1                             0x0000b991
+#define REG_A6XX_SP_CS_NDRANGE_2                             0x0000b992
+#define REG_A6XX_SP_CS_NDRANGE_3                             0x0000b993
+#define REG_A6XX_SP_CS_NDRANGE_4                             0x0000b994
+#define REG_A6XX_SP_CS_NDRANGE_5                             0x0000b995
+#define REG_A6XX_SP_CS_NDRANGE_6                             0x0000b996
+#define REG_A6XX_SP_CS_PROGRAM_COUNTER_OFFSET                0x0000a9b3
+#define REG_A6XX_SP_CS_PVT_MEM_BASE                          0x0000a9b7
+#define REG_A6XX_SP_CS_PVT_MEM_PARAM                         0x0000a9b6
+#define REG_A6XX_SP_CS_PVT_MEM_SIZE                          0x0000a9b9
+#define REG_A6XX_SP_CS_PVT_MEM_STACK_OFFSET                  0x0000a9bd
+#define REG_A6XX_SP_CS_SAMPLER_BASE                          0x0000a9e2
+#define REG_A6XX_SP_CS_TEXMEMOBJ_BASE                        0x0000a9e6
+#define REG_A6XX_SP_CS_TSIZE                                 0x0000a9ba
+#define REG_A6XX_SP_CS_UAV_BASE                              0x0000a9f2
+#define REG_A6XX_SP_CS_USIZE                                 0x0000aa00
+#define REG_A6XX_SP_CS_WGE_CNTL                              0x0000b998
+#define REG_A6XX_SP_CS_WIE_CNTL_0                            0x0000a9c2
+#define REG_A6XX_SP_CS_WIE_CNTL_1                            0x0000a9c3
+#define REG_A6XX_SP_DBG_ECO_CNTL                             0x0000ae00
+#define REG_A6XX_SP_DRAW_INITIATOR                           0x0000bb00
+#define REG_A6XX_SP_DS_BASE                                  0x0000a85c
+#define REG_A6XX_SP_DS_BOOLEAN_CF_MASK                       0x0000a841
+#define REG_A6XX_SP_DS_CNTL_0                                0x0000a840
+#define REG_A6XX_SP_DS_CONFIG                                0x0000a863
+#define REG_A6XX_SP_DS_CONST_CONFIG                          0x0000b802
+#define REG_A6XX_SP_DS_HYSTERESIS                            0x0000a866
+#define REG_A6XX_SP_DS_INSTR_SIZE                            0x0000a864
+#define REG_A6XX_SP_DS_OUTPUT(i0)                            (0x0000a843 + 0x1*i0 )
+#define REG_A6XX_SP_DS_OUTPUT_CNTL                           0x0000a842
+#define REG_A6XX_SP_DS_PROGRAM_COUNTER_OFFSET                0x0000a85b
+#define REG_A6XX_SP_DS_PVT_MEM_BASE                          0x0000a85f
+#define REG_A6XX_SP_DS_PVT_MEM_PARAM                         0x0000a85e
+#define REG_A6XX_SP_DS_PVT_MEM_SIZE                          0x0000a861
+#define REG_A6XX_SP_DS_PVT_MEM_STACK_OFFSET                  0x0000a865
+#define REG_A6XX_SP_DS_SAMPLER_BASE                          0x0000a8a4
+#define REG_A6XX_SP_DS_TEXMEMOBJ_BASE                        0x0000a8ac
+#define REG_A6XX_SP_DS_TSIZE                                 0x0000a862
+#define REG_A6XX_SP_DS_VPC_DEST(i0)                          (0x0000a853 + 0x1*i0 )
+#define REG_A6XX_SP_EVENT_INITIATOR                          0x0000bb02
+#define REG_A6XX_SP_GFX_BINDLESS_BASE(i0)                    (0x0000ab10 + 0x2*i0 )
+#define REG_A6XX_SP_GFX_BINDLESS_INVALIDATE                  0x0000ab08
+#define REG_A6XX_SP_GFX_UAV_BASE                             0x0000ab1a
+#define REG_A6XX_SP_GFX_USIZE                                0x0000ab20
+#define REG_A6XX_SP_GS_BASE                                  0x0000a88d
+#define REG_A6XX_SP_GS_BOOLEAN_CF_MASK                       0x0000a872
+#define REG_A6XX_SP_GS_CNTL_0                                0x0000a870
+#define REG_A6XX_SP_GS_CNTL_1                                0x0000a871
+#define REG_A6XX_SP_GS_CONFIG                                0x0000a894
+#define REG_A6XX_SP_GS_CONST_CONFIG                          0x0000b803
+#define REG_A6XX_SP_GS_HYSTERESIS                            0x0000a897
+#define REG_A6XX_SP_GS_INSTR_SIZE                            0x0000a895
+#define REG_A6XX_SP_GS_OUTPUT(i0)                            (0x0000a874 + 0x1*i0 )
+#define REG_A6XX_SP_GS_OUTPUT_CNTL                           0x0000a873
+#define REG_A6XX_SP_GS_PROGRAM_COUNTER_OFFSET                0x0000a88c
+#define REG_A6XX_SP_GS_PVT_MEM_BASE                          0x0000a890
+#define REG_A6XX_SP_GS_PVT_MEM_PARAM                         0x0000a88f
+#define REG_A6XX_SP_GS_PVT_MEM_SIZE                          0x0000a892
+#define REG_A6XX_SP_GS_PVT_MEM_STACK_OFFSET                  0x0000a896
+#define REG_A6XX_SP_GS_SAMPLER_BASE                          0x0000a8a6
+#define REG_A6XX_SP_GS_TEXMEMOBJ_BASE                        0x0000a8ae
+#define REG_A6XX_SP_GS_TSIZE                                 0x0000a893
+#define REG_A6XX_SP_GS_VPC_DEST(i0)                          (0x0000a884 + 0x1*i0 )
+#define REG_A6XX_SP_HS_BASE                                  0x0000a834
+#define REG_A6XX_SP_HS_BOOLEAN_CF_MASK                       0x0000a832
+#define REG_A6XX_SP_HS_CNTL_0                                0x0000a830
+#define REG_A6XX_SP_HS_CNTL_1                                0x0000a831
+#define REG_A6XX_SP_HS_CONFIG                                0x0000a83b
+#define REG_A6XX_SP_HS_CONST_CONFIG                          0x0000b801
+#define REG_A6XX_SP_HS_HYSTERESIS                            0x0000a83e
+#define REG_A6XX_SP_HS_INSTR_SIZE                            0x0000a83c
+#define REG_A6XX_SP_HS_PROGRAM_COUNTER_OFFSET                0x0000a833
+#define REG_A6XX_SP_HS_PVT_MEM_BASE                          0x0000a837
+#define REG_A6XX_SP_HS_PVT_MEM_PARAM                         0x0000a836
+#define REG_A6XX_SP_HS_PVT_MEM_SIZE                          0x0000a839
+#define REG_A6XX_SP_HS_PVT_MEM_STACK_OFFSET                  0x0000a83d
+#define REG_A6XX_SP_HS_SAMPLER_BASE                          0x0000a8a2
+#define REG_A6XX_SP_HS_TEXMEMOBJ_BASE                        0x0000a8aa
+#define REG_A6XX_SP_HS_TSIZE                                 0x0000a83a
+#define REG_A6XX_SP_KERNEL_INITIATOR                         0x0000bb01
+#define REG_A6XX_SP_LB_PARAM_LIMIT                           0x0000b982
+#define REG_A6XX_SP_MODE_CNTL                                0x0000ab00
+#define REG_A6XX_SP_NC_MODE_CNTL                             0x0000ae02
+#define REG_A6XX_SP_NC_MODE_CNTL_2                           0x0000ae04
+#define REG_A6XX_SP_PERFCTR_CNTL                             0x0000ae07
+#define REG_A6XX_SP_PERFCTR_SHADER_MASK                      0x0000ae0f
+#define REG_A6XX_SP_PERFCTR_SP_SEL(i0)                       (0x0000ae10 + 0x1*i0 )
+#define REG_A6XX_SP_PS_BASE                                  0x0000a983
+#define REG_A6XX_SP_PS_BOOLEAN_CF_MASK                       0x0000a981
+#define REG_A6XX_SP_PS_CNTL_0                                0x0000a980
+#define REG_A6XX_SP_PS_CONFIG                                0x0000ab04
+#define REG_A6XX_SP_PS_CONST_CONFIG                          0x0000bb10
+#define REG_A6XX_SP_PS_HYSTERESIS                            0x0000a9ab
+#define REG_A6XX_SP_PS_INITIAL_TEX_INDEX(i0)                 (0x0000a9a3 + 0x1*i0 )
+#define REG_A6XX_SP_PS_INITIAL_TEX_LOAD(i0)                  (0x0000a99f + 0x1*i0 )
+#define REG_A6XX_SP_PS_INITIAL_TEX_LOAD_CNTL                 0x0000a99e
+#define REG_A6XX_SP_PS_INSTR_SIZE                            0x0000ab05
+#define REG_A6XX_SP_PS_MRT(i0)                               (0x0000a996 + 0x1*i0 )
+#define REG_A6XX_SP_PS_MRT_CNTL                              0x0000a98d
+#define REG_A6XX_SP_PS_OUTPUT(i0)                            (0x0000a98e + 0x1*i0 )
+#define REG_A6XX_SP_PS_OUTPUT_CNTL                           0x0000a98c
+#define REG_A6XX_SP_PS_OUTPUT_MASK                           0x0000a98b
+#define REG_A6XX_SP_PS_PROGRAM_COUNTER_OFFSET                0x0000a982
+#define REG_A6XX_SP_PS_PVT_MEM_BASE                          0x0000a986
+#define REG_A6XX_SP_PS_PVT_MEM_PARAM                         0x0000a985
+#define REG_A6XX_SP_PS_PVT_MEM_SIZE                          0x0000a988
+#define REG_A6XX_SP_PS_PVT_MEM_STACK_OFFSET                  0x0000a9a9
+#define REG_A6XX_SP_PS_SAMPLER_BASE                          0x0000a9e0
+#define REG_A6XX_SP_PS_TEXMEMOBJ_BASE                        0x0000a9e4
+#define REG_A6XX_SP_PS_TSIZE                                 0x0000a9a7
+#define REG_A6XX_SP_PS_UNKNOWN_B4CD                          0x0000b4cd
+#define REG_A6XX_SP_PS_UNKNOWN_B4CE                          0x0000b4ce
+#define REG_A6XX_SP_PS_UNKNOWN_B4CF                          0x0000b4cf
+#define REG_A6XX_SP_PS_UNKNOWN_B4D0                          0x0000b4d0
+#define REG_A6XX_SP_PS_WAVE_CNTL                             0x0000b980
+#define REG_A6XX_SP_REG_PROG_ID_0                            0x0000b983
+#define REG_A6XX_SP_REG_PROG_ID_1                            0x0000b984
+#define REG_A6XX_SP_REG_PROG_ID_2                            0x0000b985
+#define REG_A6XX_SP_REG_PROG_ID_3                            0x0000b986
+#define REG_A6XX_SP_SRGB_CNTL                                0x0000a98a
+#define REG_A6XX_SP_STATUS                                   0x0000ae0c
+#define REG_A6XX_SP_UNKNOWN_A9A8                             0x0000a9a8
+#define REG_A6XX_SP_UNKNOWN_AAF2                             0x0000aaf2
+#define REG_A6XX_SP_UNKNOWN_B190                             0x0000b190
+#define REG_A6XX_SP_UNKNOWN_B191                             0x0000b191
+#define REG_A6XX_SP_UPDATE_CNTL                              0x0000bb08
+#define REG_A6XX_SP_VS_BASE                                  0x0000a81c
+#define REG_A6XX_SP_VS_BOOLEAN_CF_MASK                       0x0000a801
+#define REG_A6XX_SP_VS_CNTL_0                                0x0000a800
+#define REG_A6XX_SP_VS_CONFIG                                0x0000a823
+#define REG_A6XX_SP_VS_CONST_CONFIG                          0x0000b800
+#define REG_A6XX_SP_VS_HYSTERESIS                            0x0000a826
+#define REG_A6XX_SP_VS_INSTR_SIZE                            0x0000a824
+#define REG_A6XX_SP_VS_OUTPUT(i0)                            (0x0000a803 + 0x1*i0 )
+#define REG_A6XX_SP_VS_OUTPUT_CNTL                           0x0000a802
+#define REG_A6XX_SP_VS_PROGRAM_COUNTER_OFFSET                0x0000a81b
+#define REG_A6XX_SP_VS_PVT_MEM_BASE                          0x0000a81f
+#define REG_A6XX_SP_VS_PVT_MEM_PARAM                         0x0000a81e
+#define REG_A6XX_SP_VS_PVT_MEM_SIZE                          0x0000a821
+#define REG_A6XX_SP_VS_PVT_MEM_STACK_OFFSET                  0x0000a825
+#define REG_A6XX_SP_VS_SAMPLER_BASE                          0x0000a8a0
+#define REG_A6XX_SP_VS_TEXMEMOBJ_BASE                        0x0000a8a8
+#define REG_A6XX_SP_VS_TSIZE                                 0x0000a822
+#define REG_A6XX_SP_VS_VPC_DEST(i0)                          (0x0000a813 + 0x1*i0 )
+#define REG_A6XX_SP_WINDOW_OFFSET                            0x0000b4d1
+#define REG_A6XX_TPL1_A2D_SRC_TEXTURE_BASE                   0x0000b4c2
+#define REG_A6XX_TPL1_A2D_SRC_TEXTURE_BASE_1                 0x0000b4c5
+#define REG_A6XX_TPL1_A2D_SRC_TEXTURE_BASE_2                 0x0000b4c8
+#define REG_A6XX_TPL1_A2D_SRC_TEXTURE_FLAG_BASE              0x0000b4ca
+#define REG_A6XX_TPL1_A2D_SRC_TEXTURE_FLAG_PITCH             0x0000b4cc
+#define REG_A6XX_TPL1_A2D_SRC_TEXTURE_INFO                   0x0000b4c0
+#define REG_A6XX_TPL1_A2D_SRC_TEXTURE_PITCH                  0x0000b4c4
+#define REG_A6XX_TPL1_A2D_SRC_TEXTURE_PITCH_1                0x0000b4c7
+#define REG_A6XX_TPL1_A2D_SRC_TEXTURE_SIZE                   0x0000b4c1
+#define REG_A6XX_TPL1_ADDR_MODE_CNTL                         0x0000b601
+#define REG_A6XX_TPL1_BICUBIC_WEIGHTS_TABLE(i0)              (0x0000b608 + 0x1*i0 )
+#define REG_A6XX_TPL1_CS_BORDER_COLOR_BASE                   0x0000b180
+#define REG_A6XX_TPL1_DBG_ECO_CNTL                           0x0000b600
+#define REG_A6XX_TPL1_DBG_ECO_CNTL1                          0x0000b602
+#define REG_A6XX_TPL1_DEST_MSAA_CNTL                         0x0000b301
+#define REG_A6XX_TPL1_GFX_BORDER_COLOR_BASE                  0x0000b302
+#define REG_A6XX_TPL1_MODE_CNTL                              0x0000b309
+#define REG_A6XX_TPL1_MSAA_SAMPLE_POS_CNTL                   0x0000b304
+#define REG_A6XX_TPL1_NC_MODE_CNTL                           0x0000b604
+#define REG_A6XX_TPL1_PERFCTR_TP_SEL(i0)                     (0x0000b610 + 0x1*i0 )
+#define REG_A6XX_TPL1_PROGRAMMABLE_MSAA_POS_0                0x0000b305
+#define REG_A6XX_TPL1_PROGRAMMABLE_MSAA_POS_1                0x0000b306
+#define REG_A6XX_TPL1_PS_ROTATION_CNTL                       0x0000b182
+#define REG_A6XX_TPL1_PS_SWIZZLE_CNTL                        0x0000b183
+#define REG_A6XX_TPL1_RAS_MSAA_CNTL                          0x0000b300
+#define REG_A6XX_TPL1_UNKNOWN_B605                           0x0000b605
+#define REG_A6XX_TPL1_WINDOW_OFFSET                          0x0000b307
+#define REG_A6XX_UCHE_ADDR_MODE_CNTL                         0x00000e00
+#define REG_A6XX_UCHE_CACHE_WAYS                             0x00000e17
+#define REG_A6XX_UCHE_CLIENT_PF                              0x00000e19
+#define REG_A6XX_UCHE_CMDQ_CONFIG                            0x00000e3c
+#define REG_A6XX_UCHE_FILTER_CNTL                            0x00000e18
+#define REG_A6XX_UCHE_GBIF_GX_CONFIG                         0x00000e3a
+#define REG_A6XX_UCHE_GMEM_RANGE_MAX                         0x00000e0d
+#define REG_A6XX_UCHE_GMEM_RANGE_MIN                         0x00000e0b
+#define REG_A6XX_UCHE_MODE_CNTL                              0x00000e01
+#define REG_A6XX_UCHE_PERFCTR_UCHE_SEL(i0)                   (0x00000e1c + 0x1*i0 )
+#define REG_A6XX_UCHE_TRAP_BASE                              0x00000e09
+#define REG_A6XX_UCHE_UNKNOWN_0E12                           0x00000e12
+#define REG_A6XX_UCHE_WRITE_RANGE_MAX                        0x00000e05
+#define REG_A6XX_UCHE_WRITE_THRU_BASE                        0x00000e07
+#define REG_A6XX_VBIF_CLKON                                  0x00003001
+#define REG_A6XX_VBIF_GATE_OFF_WRREQ_EN                      0x0000302a
+#define REG_A6XX_VBIF_PERF_CNT_HIGH0                         0x000030e0
+#define REG_A6XX_VBIF_PERF_CNT_HIGH1                         0x000030e1
+#define REG_A6XX_VBIF_PERF_CNT_HIGH2                         0x000030e2
+#define REG_A6XX_VBIF_PERF_CNT_HIGH3                         0x000030e3
+#define REG_A6XX_VBIF_PERF_CNT_LOW0                          0x000030d8
+#define REG_A6XX_VBIF_PERF_CNT_LOW1                          0x000030d9
+#define REG_A6XX_VBIF_PERF_CNT_LOW2                          0x000030da
+#define REG_A6XX_VBIF_PERF_CNT_LOW3                          0x000030db
+#define REG_A6XX_VBIF_PERF_CNT_SEL0                          0x000030d0
+#define REG_A6XX_VBIF_PERF_CNT_SEL1                          0x000030d1
+#define REG_A6XX_VBIF_PERF_CNT_SEL2                          0x000030d2
+#define REG_A6XX_VBIF_PERF_CNT_SEL3                          0x000030d3
+#define REG_A6XX_VBIF_PERF_PWR_CNT_EN0                       0x00003100
+#define REG_A6XX_VBIF_PERF_PWR_CNT_EN1                       0x00003101
+#define REG_A6XX_VBIF_PERF_PWR_CNT_EN2                       0x00003102
+#define REG_A6XX_VBIF_PERF_PWR_CNT_HIGH0                     0x00003118
+#define REG_A6XX_VBIF_PERF_PWR_CNT_HIGH1                     0x00003119
+#define REG_A6XX_VBIF_PERF_PWR_CNT_HIGH2                     0x0000311a
+#define REG_A6XX_VBIF_PERF_PWR_CNT_LOW0                      0x00003110
+#define REG_A6XX_VBIF_PERF_PWR_CNT_LOW1                      0x00003111
+#define REG_A6XX_VBIF_PERF_PWR_CNT_LOW2                      0x00003112
+#define REG_A6XX_VBIF_TEST_BUS1_CTRL0                        0x00003085
+#define REG_A6XX_VBIF_TEST_BUS1_CTRL1                        0x00003086
+#define REG_A6XX_VBIF_TEST_BUS2_CTRL0                        0x00003087
+#define REG_A6XX_VBIF_TEST_BUS2_CTRL1                        0x00003088
+#define REG_A6XX_VBIF_TEST_BUS_OUT                           0x0000308c
+#define REG_A6XX_VBIF_TEST_BUS_OUT_CTRL                      0x00003084
+#define REG_A6XX_VBIF_VERSION                                0x00003000
+#define REG_A6XX_VBIF_XIN_HALT_CTRL0                         0x00003080
+#define REG_A6XX_VBIF_XIN_HALT_CTRL1                         0x00003081
+#define REG_A6XX_VFD_ADDR_MODE_CNTL                          0x0000a601
+#define REG_A6XX_VFD_CNTL_0                                  0x0000a000
+#define REG_A6XX_VFD_CNTL_1                                  0x0000a001
+#define REG_A6XX_VFD_CNTL_2                                  0x0000a002
+#define REG_A6XX_VFD_CNTL_3                                  0x0000a003
+#define REG_A6XX_VFD_CNTL_4                                  0x0000a004
+#define REG_A6XX_VFD_CNTL_5                                  0x0000a005
+#define REG_A6XX_VFD_CNTL_6                                  0x0000a006
+#define REG_A6XX_VFD_DEST_CNTL(i0)                           (0x0000a0d0 + 0x1*i0 )
+#define REG_A6XX_VFD_FETCH_INSTR(i0)                         (0x0000a090 + 0x2*i0 )
+#define REG_A6XX_VFD_INDEX_OFFSET                            0x0000a00e
+#define REG_A6XX_VFD_INSTANCE_START_OFFSET                   0x0000a00f
+#define REG_A6XX_VFD_MODE_CNTL                               0x0000a009
+#define REG_A6XX_VFD_PERFCTR_VFD_SEL(i0)                     (0x0000a610 + 0x1*i0 )
+#define REG_A6XX_VFD_POWER_CNTL                              0x0000a0f8
+#define REG_A6XX_VFD_RENDER_MODE                             0x0000a007
+#define REG_A6XX_VFD_STEREO_RENDERING_CNTL                   0x0000a008
+#define REG_A6XX_VFD_VERTEX_BUFFER(i0)                       (0x0000a010 + 0x4*i0 )
+#define REG_A6XX_VPC_ADDR_MODE_CNTL                          0x00009601
+#define REG_A6XX_VPC_CONTEXT_SWITCH_SO_SAVE_ADDR             0x00009634
+#define REG_A6XX_VPC_DBG_ECO_CNTL                            0x00009600
+#define REG_A6XX_VPC_DS_CLIP_CULL_CNTL                       0x00009103
+#define REG_A6XX_VPC_DS_CLIP_CULL_CNTL_V2                    0x00009313
+#define REG_A6XX_VPC_DS_CNTL                                 0x00009303
+#define REG_A6XX_VPC_DS_SIV_CNTL                             0x00009106
+#define REG_A6XX_VPC_DS_SIV_CNTL_V2                          0x00009316
+#define REG_A6XX_VPC_GS_CLIP_CULL_CNTL                       0x00009102
+#define REG_A6XX_VPC_GS_CLIP_CULL_CNTL_V2                    0x00009312
+#define REG_A6XX_VPC_GS_CNTL                                 0x00009302
+#define REG_A6XX_VPC_GS_PARAM                                0x00009100
+#define REG_A6XX_VPC_GS_SIV_CNTL                             0x00009105
+#define REG_A6XX_VPC_GS_SIV_CNTL_V2                          0x00009315
+#define REG_A6XX_VPC_LB_MODE_CNTL                            0x00009602
+#define REG_A6XX_VPC_PERFCTR_VPC_SEL(i0)                     (0x00009604 + 0x1*i0 )
+#define REG_A6XX_VPC_PS_CNTL                                 0x00009304
+#define REG_A6XX_VPC_PS_RAST_CNTL                            0x00009307
+#define REG_A6XX_VPC_RAST_CNTL                               0x00009108
+#define REG_A6XX_VPC_RAST_STREAM_CNTL                        0x00009107
+#define REG_A6XX_VPC_REPLACE_MODE_CNTL                       0x00009236
+#define REG_A6XX_VPC_ROTATION_CNTL                           0x00009300
+#define REG_A6XX_VPC_SO(i0)                                  (0x0000921a + 0x7*i0 )
+#define REG_A6XX_VPC_SO_CNTL                                 0x00009305
+#define REG_A6XX_VPC_SO_MAPPING_PORT                         0x00009217
+#define REG_A6XX_VPC_SO_MAPPING_WPTR                         0x00009216
+#define REG_A6XX_VPC_SO_OVERRIDE                             0x00009306
+#define REG_A6XX_VPC_SO_QUERY_BASE                           0x00009218
+#define REG_A6XX_VPC_STATUS                                  0x00009603
+#define REG_A6XX_VPC_UNKNOWN_9210                            0x00009210
+#define REG_A6XX_VPC_UNKNOWN_9211                            0x00009211
+#define REG_A6XX_VPC_VARYING_INTERP_MODE(i0)                 (0x00009200 + 0x1*i0 )
+#define REG_A6XX_VPC_VARYING_LM_TRANSFER_CNTL(i0)            (0x00009212 + 0x1*i0 )
+#define REG_A6XX_VPC_VARYING_REPLACE_MODE(i0)                (0x00009208 + 0x1*i0 )
+#define REG_A6XX_VPC_VS_CLIP_CULL_CNTL                       0x00009101
+#define REG_A6XX_VPC_VS_CLIP_CULL_CNTL_V2                    0x00009311
+#define REG_A6XX_VPC_VS_CNTL                                 0x00009301
+#define REG_A6XX_VPC_VS_SIV_CNTL                             0x00009104
+#define REG_A6XX_VPC_VS_SIV_CNTL_V2                          0x00009314
+#define REG_A6XX_VSC_ADDR_MODE_CNTL                          0x00000c01
+#define REG_A6XX_VSC_BIN_SIZE                                0x00000c02
+#define REG_A6XX_VSC_CHANNEL_VISIBILITY(i0)                  (0x00000c38 + 0x1*i0 )
+#define REG_A6XX_VSC_DBG_ECO_CNTL                            0x00000c00
+#define REG_A6XX_VSC_EXPANDED_BIN_CNTL                       0x00000c06
+#define REG_A6XX_VSC_PERFCTR_VSC_SEL(i0)                     (0x00000cd8 + 0x1*i0 )
+#define REG_A6XX_VSC_PIPE_CONFIG(i0)                         (0x00000c10 + 0x1*i0 )
+#define REG_A6XX_VSC_PIPE_DATA_DRAW_BASE                     0x00000c34
+#define REG_A6XX_VSC_PIPE_DATA_DRAW_LENGTH                   0x00000c37
+#define REG_A6XX_VSC_PIPE_DATA_DRAW_SIZE(i0)                 (0x00000c78 + 0x1*i0 )
+#define REG_A6XX_VSC_PIPE_DATA_DRAW_STRIDE                   0x00000c36
+#define REG_A6XX_VSC_PIPE_DATA_PRIM_BASE                     0x00000c30
+#define REG_A6XX_VSC_PIPE_DATA_PRIM_LENGTH                   0x00000c33
+#define REG_A6XX_VSC_PIPE_DATA_PRIM_SIZE(i0)                 (0x00000c58 + 0x1*i0 )
+#define REG_A6XX_VSC_PIPE_DATA_PRIM_STRIDE                   0x00000c32
+#define REG_A6XX_VSC_SIZE_BASE                               0x00000c03
+#define REG_A7XX_CP_APERTURE_CNTL_CD                         0x00000a03
+#define REG_A7XX_CP_APERTURE_CNTL_HOST                       0x00000a00
+#define REG_A7XX_CP_AQE_APRIV_CNTL                           0x00000b78
+#define REG_A7XX_CP_AQE_INSTR_BASE_0                         0x00000b70
+#define REG_A7XX_CP_AQE_INSTR_BASE_1                         0x00000b72
+#define REG_A7XX_CP_AQE_ROQ_DBG_ADDR_0                       0x00000ba8
+#define REG_A7XX_CP_AQE_ROQ_DBG_ADDR_1                       0x00000ba9
+#define REG_A7XX_CP_AQE_ROQ_DBG_DATA_0                       0x00000bac
+#define REG_A7XX_CP_AQE_ROQ_DBG_DATA_1                       0x00000bad
+#define REG_A7XX_CP_AQE_STAT_ADDR_0                          0x00000bb8
+#define REG_A7XX_CP_AQE_STAT_ADDR_1                          0x00000bb9
+#define REG_A7XX_CP_AQE_STAT_DATA_0                          0x00000bbc
+#define REG_A7XX_CP_AQE_STAT_DATA_1                          0x00000bbd
+#define REG_A7XX_CP_AQE_UCODE_DBG_ADDR_0                     0x00000bb0
+#define REG_A7XX_CP_AQE_UCODE_DBG_ADDR_1                     0x00000bb1
+#define REG_A7XX_CP_AQE_UCODE_DBG_DATA_0                     0x00000bb4
+#define REG_A7XX_CP_AQE_UCODE_DBG_DATA_1                     0x00000bb5
+#define REG_A7XX_CP_BV_APRIV_CNTL                            0x00000ad0
+#define REG_A7XX_CP_BV_CHICKEN_DBG                           0x00000ada
+#define REG_A7XX_CP_BV_DRAW_STATE_ADDR                       0x00000a81
+#define REG_A7XX_CP_BV_DRAW_STATE_DATA                       0x00000a82
+#define REG_A7XX_CP_BV_HW_FAULT                              0x00000a64
+#define REG_A7XX_CP_BV_IB1_BASE                              0x00000a6d
+#define REG_A7XX_CP_BV_IB1_REM_SIZE                          0x00000a70
+#define REG_A7XX_CP_BV_IB2_BASE                              0x00000a71
+#define REG_A7XX_CP_BV_IB2_REM_SIZE                          0x00000a74
+#define REG_A7XX_CP_BV_MEM_POOL_DBG_ADDR                     0x00000a96
+#define REG_A7XX_CP_BV_MEM_POOL_DBG_DATA                     0x00000a97
+#define REG_A7XX_CP_BV_PERFCTR_CP_SEL(i0)                    (0x000008e0 + 0x1*i0 )
+#define REG_A7XX_CP_BV_PROTECT_STATUS                        0x00000a61
+#define REG_A7XX_CP_BV_RB_RPTR                               0x00000a66
+#define REG_A7XX_CP_BV_RB_RPTR_ADDR                          0x00000a98
+#define REG_A7XX_CP_BV_ROQ_AVAIL_IB1                         0x00000a90
+#define REG_A7XX_CP_BV_ROQ_AVAIL_IB2                         0x00000a91
+#define REG_A7XX_CP_BV_ROQ_AVAIL_RB                          0x00000a8f
+#define REG_A7XX_CP_BV_ROQ_DBG_ADDR                          0x00000a83
+#define REG_A7XX_CP_BV_ROQ_DBG_DATA                          0x00000a84
+#define REG_A7XX_CP_BV_SQE_STAT_ADDR                         0x00000a87
+#define REG_A7XX_CP_BV_SQE_STAT_DATA                         0x00000a88
+#define REG_A7XX_CP_BV_SQE_UCODE_DBG_ADDR                    0x00000a85
+#define REG_A7XX_CP_BV_SQE_UCODE_DBG_DATA                    0x00000a86
+#define REG_A7XX_CP_CONTEXT_SWITCH_LEVEL_STATUS              0x000008ab
+#define REG_A7XX_CP_LPAC_APRIV_CNTL                          0x00000b31
+#define REG_A7XX_CP_LPAC_DRAW_STATE_ADDR                     0x00000b0a
+#define REG_A7XX_CP_LPAC_DRAW_STATE_DATA                     0x00000b0b
+#define REG_A7XX_CP_LPAC_FIFO_DBG_ADDR                       0x00000b40
+#define REG_A7XX_CP_LPAC_FIFO_DBG_DATA                       0x00000b36
+#define REG_A7XX_CP_LPAC_PROG_FIFO_SIZE                      0x00000b34
+#define REG_A7XX_CP_LPAC_ROQ_DBG_ADDR                        0x00000b0c
+#define REG_A7XX_CP_LPAC_ROQ_DBG_DATA                        0x00000b35
+#define REG_A7XX_CP_RB_RPTR_WR                               0x00000803
+#define REG_A7XX_CP_RESERVED_REG(i0)                         (0x00000a9c + 0x1*i0 )
+#define REG_A7XX_CP_RESOURCE_TABLE_DBG_ADDR                  0x00000a9a
+#define REG_A7XX_CP_RESOURCE_TABLE_DBG_DATA                  0x00000a9b
+#define REG_A7XX_CP_SQE_AC_STAT_ADDR                         0x00000b29
+#define REG_A7XX_CP_SQE_AC_STAT_DATA                         0x00000b2a
+#define REG_A7XX_CP_SQE_AC_UCODE_DBG_ADDR                    0x00000b27
+#define REG_A7XX_CP_SQE_AC_UCODE_DBG_DATA                    0x00000b28
+#define REG_A7XX_CX_DBGC_CFG_DBGBUS_SEL_A                    0x00000000
+#define REG_A7XX_CX_MISC_SW_FUSE_VALUE                       0x00000400
+#define REG_A7XX_CX_MISC_TCM_RET_CNTL                        0x00000039
+#define REG_A7XX_DBGC_CFG_DBGBUS_SEL_D                       0x00000603
+#define REG_A7XX_GMU_CX_AO_COUNTER_H                         0x0001f881
+#define REG_A7XX_GMU_CX_AO_COUNTER_L                         0x0001f880
+#define REG_A7XX_GMU_GENERAL_10                              0x0001f9cf
+#define REG_A7XX_GMU_GENERAL_8                               0x0001f9cd
+#define REG_A7XX_GMU_GENERAL_9                               0x0001f9ce
+#define REG_A7XX_GMU_SPTPRAC_PWR_CLK_STATUS                  0x0001f8d0
+#define REG_A7XX_GRAS_BIN_FOVEAT                             0x00008008
+#define REG_A7XX_GRAS_BIN_FOVEAT_OFFSET_0                    0x00008009
+#define REG_A7XX_GRAS_BIN_FOVEAT_OFFSET_1                    0x0000800a
+#define REG_A7XX_GRAS_BIN_FOVEAT_OFFSET_2                    0x0000800b
+#define REG_A7XX_GRAS_BIN_FOVEAT_OFFSET_3                    0x0000800c
+#define REG_A7XX_GRAS_LRZ_CB_CNTL                            0x00008007
+#define REG_A7XX_GRAS_LRZ_CNTL                               0x00008100
+#define REG_A7XX_GRAS_LRZ_CNTL2                              0x0000810b
+#define REG_A7XX_GRAS_LRZ_DEPTH_BUFFER_INFO                  0x00008113
+#define REG_A7XX_GRAS_LRZ_DEPTH_CLEAR                        0x00008111
+#define REG_A7XX_GRAS_LRZ_QUALITY_LOOKUP_TABLE(i0)           (0x00008120 + 0x1*i0 )
+#define REG_A7XX_GRAS_NC_MODE_CNTL                           0x00008602
+#define REG_A7XX_GRAS_QUALITY_BUFFER_BASE                    0x000080f8
+#define REG_A7XX_GRAS_QUALITY_BUFFER_DIMENSION               0x000080f6
+#define REG_A7XX_GRAS_QUALITY_BUFFER_INFO                    0x000080f5
+#define REG_A7XX_GRAS_QUALITY_BUFFER_PITCH                   0x000080fa
+#define REG_A7XX_GRAS_ROTATION_CNTL                          0x000080a7
+#define REG_A7XX_GRAS_SU_RENDER_CNTL                         0x00008116
+#define REG_A7XX_GRAS_VRS_CONFIG                             0x000080f4
+#define REG_A7XX_PC_ATTR_BUF_GMEM_SIZE                       0x00009b09
+#define REG_A7XX_PC_DGEN_RAST_CNTL                           0x00009809
+#define REG_A7XX_PC_DGEN_SO_OVERRIDE                         0x00009807
+#define REG_A7XX_PC_HS_BUFFER_SIZE                           0x00009885
+#define REG_A7XX_PC_HS_PATCH_SIZE                            0x00009884
+#define REG_A7XX_PC_PERFCTR_PC_SEL(i0)                       (0x00009e42 + 0x1*i0 )
+#define REG_A7XX_PC_TESS_BASE                                0x00009810
+#define REG_A7XX_PC_TF_BUFFER_SIZE                           0x00009886
+#define REG_A7XX_PC_UNKNOWN_9E24                             0x00009e24
+#define REG_A7XX_RBBM_CGC_0_PC                               0x00000195
+#define REG_A7XX_RBBM_CGC_GLOBAL_LOAD_CMD                    0x0000011e
+#define REG_A7XX_RBBM_CGC_P2S_CNTL                           0x00000120
+#define REG_A7XX_RBBM_CGC_P2S_STATUS                         0x00000122
+#define REG_A7XX_RBBM_CGC_P2S_TRIG_CMD                       0x0000011f
+#define REG_A7XX_RBBM_CLOCK_CNTL_GLOBAL                      0x000000ad
+#define REG_A7XX_RBBM_CLOCK_HYST2_VFD                        0x0000012f
+#define REG_A7XX_RBBM_CLOCK_MODE2_GRAS                       0x00000286
+#define REG_A7XX_RBBM_CLOCK_MODE_BV_GPC                      0x00000288
+#define REG_A7XX_RBBM_CLOCK_MODE_BV_GRAS                     0x00000285
+#define REG_A7XX_RBBM_CLOCK_MODE_BV_LRZ                      0x00000284
+#define REG_A7XX_RBBM_CLOCK_MODE_BV_VFD                      0x00000287
+#define REG_A7XX_RBBM_CLOCK_MODE_CP                          0x00000260
+#define REG_A7XX_RBBM_INT_2_MASK                             0x0000003a
+#define REG_A7XX_RBBM_PERFCTR2_CP(i0)                        (0x0000041c + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR2_HLSQ(i0)                      (0x00000410 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR2_SP(i0)                        (0x0000042a + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR2_TP(i0)                        (0x00000442 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR2_UFC(i0)                       (0x0000044e + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_BV_LRZ(i0)                     (0x0000049c + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_BV_PC(i0)                      (0x00000460 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_BV_RAS(i0)                     (0x00000494 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_BV_TSE(i0)                     (0x0000048c + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_BV_VFD(i0)                     (0x00000470 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_BV_VPC(i0)                     (0x00000480 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_CCU(i0)                        (0x0000035c + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_CMP(i0)                        (0x000003f2 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_CP(i0)                         (0x00000300 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_HLSQ(i0)                       (0x00000344 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_LRZ(i0)                        (0x000003ea + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_PC(i0)                         (0x00000324 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_RAS(i0)                        (0x0000036e + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_RB(i0)                         (0x000003d6 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_RBBM(i0)                       (0x0000031c + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_SP(i0)                         (0x000003a6 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_TP(i0)                         (0x0000038e + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_TSE(i0)                        (0x00000366 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_UCHE(i0)                       (0x00000376 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_UFC(i0)                        (0x000003fa + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_VFD(i0)                        (0x00000334 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_VPC(i0)                        (0x00000350 + 0x2*i0 )
+#define REG_A7XX_RBBM_PERFCTR_VSC(i0)                        (0x000003e6 + 0x2*i0 )
+#define REG_A7XX_RBBM_SECVID_TSB_STATUS                      0x0000fc00
+#define REG_A7XX_RBBM_SNAPSHOT_STATUS                        0x00000535
+#define REG_A7XX_RBBM_SW_FUSE_INT_MASK                       0x000002c1
+#define REG_A7XX_RBBM_SW_FUSE_INT_STATUS                     0x000002c0
+#define REG_A7XX_RB_A2D_DEST_BUFFER_ARRAY_PITCH              0x00008c34
+#define REG_A7XX_RB_BIN_FOVEAT                               0x000088f5
+#define REG_A7XX_RB_BUFFER_CNTL                              0x00008812
+#define REG_A7XX_RB_CCU_CACHE_CNTL                           0x000088e5
+#define REG_A7XX_RB_CCU_CNTL                                 0x00008e07
+#define REG_A7XX_RB_CCU_DBG_ECO_CNTL                         0x00008e06
+#define REG_A7XX_RB_CLEAR_TARGET                             0x000088e4
+#define REG_A7XX_RB_DEPTH_BUFFER_INFO                        0x00008872
+#define REG_A7XX_RB_LRZ_CNTL2                                0x00008899
+#define REG_A7XX_RB_PERFCTR_UFC_SEL(i0)                      (0x00008e30 + 0x1*i0 )
+#define REG_A7XX_RB_RENDER_CNTL                              0x00008801
+#define REG_A7XX_RB_STENCIL_BUFFER_INFO                      0x00008881
+#define REG_A7XX_RB_UNKNOWN_8E09                             0x00008e09
+#define REG_A7XX_RB_UNKNOWN_8E79                             0x00008e79
+#define REG_A7XX_RSCC_SEQ_MEM_0_DRV0_A740                    0x00000154
+#define REG_A7XX_RSCC_TCS4_DRV0_STATUS                       0x000005e6
+#define REG_A7XX_RSCC_TCS5_DRV0_STATUS                       0x0000068e
+#define REG_A7XX_RSCC_TCS6_DRV0_STATUS                       0x00000736
+#define REG_A7XX_RSCC_TCS7_DRV0_STATUS                       0x000007de
+#define REG_A7XX_RSCC_TCS8_DRV0_STATUS                       0x00000886
+#define REG_A7XX_RSCC_TCS9_DRV0_STATUS                       0x0000092e
+#define REG_A7XX_SP_A2D_OUTPUT_INFO                          0x0000a9bf
+#define REG_A7XX_SP_AHB_READ_APERTURE                        0x0000c000
+#define REG_A7XX_SP_CHICKEN_BITS_1                           0x0000ae08
+#define REG_A7XX_SP_CHICKEN_BITS_2                           0x0000ae09
+#define REG_A7XX_SP_CHICKEN_BITS_3                           0x0000ae0a
+#define REG_A7XX_SP_CS_BINDLESS_BASE(i0)                     (0x0000a9e8 + 0x2*i0 )
+#define REG_A7XX_SP_CS_CONST_CONFIG                          0x0000a9cd
+#define REG_A7XX_SP_CS_KERNEL_GROUP_X                        0x0000a9dc
+#define REG_A7XX_SP_CS_KERNEL_GROUP_Y                        0x0000a9dd
+#define REG_A7XX_SP_CS_KERNEL_GROUP_Z                        0x0000a9de
+#define REG_A7XX_SP_CS_NDRANGE_0                             0x0000a9d4
+#define REG_A7XX_SP_CS_NDRANGE_1                             0x0000a9d5
+#define REG_A7XX_SP_CS_NDRANGE_2                             0x0000a9d6
+#define REG_A7XX_SP_CS_NDRANGE_3                             0x0000a9d7
+#define REG_A7XX_SP_CS_NDRANGE_4                             0x0000a9d8
+#define REG_A7XX_SP_CS_NDRANGE_5                             0x0000a9d9
+#define REG_A7XX_SP_CS_NDRANGE_6                             0x0000a9da
+#define REG_A7XX_SP_CS_NDRANGE_7                             0x0000a9df
+#define REG_A7XX_SP_CS_UAV_BASE                              0x0000a9f8
+#define REG_A7XX_SP_CS_VGS_CNTL                              0x0000a9c5
+#define REG_A7XX_SP_CS_WGE_CNTL                              0x0000a9db
+#define REG_A7XX_SP_CS_WIE_CNTL_1                            0x0000a9c3
+#define REG_A7XX_SP_DBG_CNTL                                 0x0000ae71
+#define REG_A7XX_SP_DISPATCH_CNTL                            0x0000ae3b
+#define REG_A7XX_SP_DITHER_CNTL                              0x0000a9ac
+#define REG_A7XX_SP_DRAW_INITIATOR                           0x0000ab1c
+#define REG_A7XX_SP_DS_CONST_CONFIG                          0x0000a867
+#define REG_A7XX_SP_DS_VGS_CNTL                              0x0000a868
+#define REG_A7XX_SP_EVENT_INITIATOR                          0x0000ab1e
+#define REG_A7XX_SP_GFX_BINDLESS_BASE(i0)                    (0x0000ab0a + 0x2*i0 )
+#define REG_A7XX_SP_GS_CONST_CONFIG                          0x0000a898
+#define REG_A7XX_SP_GS_VGS_CNTL                              0x0000a899
+#define REG_A7XX_SP_HLSQ_DBG_ECO_CNTL                        0x0000ae6c
+#define REG_A7XX_SP_HLSQ_DBG_ECO_CNTL_1                      0x0000ae73
+#define REG_A7XX_SP_HLSQ_DBG_ECO_CNTL_2                      0x0000ae74
+#define REG_A7XX_SP_HLSQ_MODE_CNTL                           0x0000ab02
+#define REG_A7XX_SP_HLSQ_TIMEOUT_THRESHOLD_DP                0x0000ae6b
+#define REG_A7XX_SP_HS_CONST_CONFIG                          0x0000a83f
+#define REG_A7XX_SP_HS_VGS_CNTL                              0x0000a82f
+#define REG_A7XX_SP_ISDB_BATCH_COUNT                         0x0000ae30
+#define REG_A7XX_SP_ISDB_BATCH_COUNT_INCR_EN                 0x0000ae31
+#define REG_A7XX_SP_ISDB_BATCH_COUNT_SHADERS                 0x0000ae32
+#define REG_A7XX_SP_ISDB_CNTL                                0x0000ae06
+#define REG_A7XX_SP_ISDB_DEBUG_ADDR                          0x0000ae3e
+#define REG_A7XX_SP_ISDB_DEBUG_CONFIG                        0x0000ae35
+#define REG_A7XX_SP_KERNEL_INITIATOR                         0x0000ab1d
+#define REG_A7XX_SP_LB_PARAM_LIMIT                           0x0000a9c7
+#define REG_A7XX_SP_LPAC_CHICKEN_BITS                        0x0000af81
+#define REG_A7XX_SP_PERFCTR_HLSQ_SEL(i0)                     (0x0000ae60 + 0x1*i0 )
+#define REG_A7XX_SP_PERFCTR_HLSQ_SEL_2(i0)                   (0x0000aec0 + 0x1*i0 )
+#define REG_A7XX_SP_PERFCTR_SP_SEL(i0)                       (0x0000ae80 + 0x1*i0 )
+#define REG_A7XX_SP_PS_CNTL_1                                0x0000a9ae
+#define REG_A7XX_SP_PS_CONST_CONFIG                          0x0000ab03
+#define REG_A7XX_SP_PS_INITIAL_TEX_LOAD(i0)                  (0x0000a99f + 0x1*i0 )
+#define REG_A7XX_SP_PS_OUTPUT_CONST_CNTL                     0x0000aa02
+#define REG_A7XX_SP_PS_OUTPUT_CONST_MASK                     0x0000aa03
+#define REG_A7XX_SP_PS_UNKNOWN_B4CD                          0x0000b2cd
+#define REG_A7XX_SP_PS_UNKNOWN_B4CE                          0x0000b2ce
+#define REG_A7XX_SP_PS_UNKNOWN_B4CF                          0x0000b2cf
+#define REG_A7XX_SP_PS_UNKNOWN_B4D0                          0x0000b2d0
+#define REG_A7XX_SP_PS_VGS_CNTL                              0x0000aa01
+#define REG_A7XX_SP_PS_WAVE_CNTL                             0x0000a9c6
+#define REG_A7XX_SP_READ_SEL                                 0x0000ae6d
+#define REG_A7XX_SP_REG_PROG_ID_0                            0x0000a9c8
+#define REG_A7XX_SP_REG_PROG_ID_1                            0x0000a9c9
+#define REG_A7XX_SP_REG_PROG_ID_2                            0x0000a9ca
+#define REG_A7XX_SP_REG_PROG_ID_3                            0x0000a9cb
+#define REG_A7XX_SP_RENDER_CNTL                              0x0000a9aa
+#define REG_A7XX_SP_SELF_THROTTLE_CONTROL                    0x0000ae3a
+#define REG_A7XX_SP_SHARED_CONSTANT_GFX(i0)                  (0x0000ab40 + 0x1*i0 )
+#define REG_A7XX_SP_SW_DEBUG_ADDR                            0x0000ae3c
+#define REG_A7XX_SP_UNKNOWN_0CE2                             0x00000ce2
+#define REG_A7XX_SP_UNKNOWN_0CE4                             0x00000ce4
+#define REG_A7XX_SP_UNKNOWN_0CE6                             0x00000ce6
+#define REG_A7XX_SP_UNKNOWN_AB01                             0x0000ab01
+#define REG_A7XX_SP_UNKNOWN_AB22                             0x0000ab22
+#define REG_A7XX_SP_UNKNOWN_AE6A                             0x0000ae6a
+#define REG_A7XX_SP_UNKNOWN_B310                             0x0000b310
+#define REG_A7XX_SP_UPDATE_CNTL                              0x0000ab1f
+#define REG_A7XX_SP_VRS_CONFIG                               0x0000a9ad
+#define REG_A7XX_SP_VS_CONST_CONFIG                          0x0000a827
+#define REG_A7XX_SP_VS_VGS_CNTL                              0x0000a82d
+#define REG_A7XX_SP_WINDOW_OFFSET                            0x0000ab21
+#define REG_A7XX_TPL1_A2D_BLT_CNTL                           0x0000b2d2
+#define REG_A7XX_TPL1_A2D_SRC_TEXTURE_BASE                   0x0000b2c2
+#define REG_A7XX_TPL1_A2D_SRC_TEXTURE_BASE_1                 0x0000b2c5
+#define REG_A7XX_TPL1_A2D_SRC_TEXTURE_BASE_2                 0x0000b2c8
+#define REG_A7XX_TPL1_A2D_SRC_TEXTURE_FLAG_BASE              0x0000b2ca
+#define REG_A7XX_TPL1_A2D_SRC_TEXTURE_FLAG_PITCH             0x0000b2cc
+#define REG_A7XX_TPL1_A2D_SRC_TEXTURE_INFO                   0x0000b2c0
+#define REG_A7XX_TPL1_A2D_SRC_TEXTURE_PITCH                  0x0000b2c4
+#define REG_A7XX_TPL1_A2D_SRC_TEXTURE_PITCH_1                0x0000b2c7
+#define REG_A7XX_TPL1_A2D_SRC_TEXTURE_SIZE                   0x0000b2c1
+#define REG_A7XX_TPL1_A2D_WINDOW_OFFSET                      0x0000b2d1
+#define REG_A7XX_TPL1_BICUBIC_WEIGHTS_TABLE(i0)              (0x0000b608 + 0x1*i0 )
+#define REG_A7XX_TPL1_PERFCTR_TP_SEL(i0)                     (0x0000b610 + 0x1*i0 )
+#define REG_A7XX_UCHE_UNKNOWN_0E10                           0x00000e10
+#define REG_A7XX_UCHE_UNKNOWN_0E11                           0x00000e11
+#define REG_A7XX_VFD_DBG_ECO_CNTL                            0x0000a600
+#define REG_A7XX_VFD_PERFCTR_VFD_SEL(i0)                     (0x0000a610 + 0x1*i0 )
+#define REG_A7XX_VPC_ATTR_BUF_GMEM_BASE                      0x00009309
+#define REG_A7XX_VPC_ATTR_BUF_GMEM_SIZE                      0x00009308
+#define REG_A7XX_VPC_FLATSHADE_MODE_CNTL                     0x0000960a
+#define REG_A7XX_VPC_GS_PARAM_0                              0x0000910a
+#define REG_A7XX_VPC_PC_CNTL                                 0x00009109
+#define REG_A7XX_VPC_PERFCTR_VPC_SEL(i0)                     (0x0000960b + 0x1*i0 )
+#define REG_A7XX_VPC_RAST_STREAM_CNTL_V2                     0x00009317
+#define REG_A7XX_VPC_STEREO_RENDERING_CNTL                   0x0000910c
+#define REG_A7XX_VPC_STEREO_RENDERING_VIEWMASK               0x0000910b
+#define REG_A7XX_VPC_UNKNOWN_CNTL                            0x0000930a
+#define REG_A7XX_VSC_UNKNOWN_0D08                            0x00000d08
+
+/* PM4 TYPE7 opcodes. */
+#define CP_BLIT                                              44
+#define CP_COND_REG_EXEC                                     71
+#define CP_CONTEXT_SWITCH_YIELD                              107
+#define CP_DRAW_INDIRECT                                     40
+#define CP_DRAW_INDX_OFFSET                                  56
+#define CP_EVENT_WRITE                                       70
+#define CP_EVENT_WRITE7                                      70
+#define CP_EXEC_CS                                           51
+#define CP_INDIRECT_BUFFER                                   63
+#define CP_INDIRECT_BUFFER_CHAIN                             87
+#define CP_INTERRUPT                                         64
+#define CP_LOAD_STATE6                                       54
+#define CP_LOAD_STATE6_FRAG                                  52
+#define CP_LOAD_STATE6_GEOM                                  50
+#define CP_MEMCPY                                            117
+#define CP_MEM_TO_REG                                        66
+#define CP_MEM_WRITE                                         61
+#define CP_ME_INIT                                           72
+#define CP_NOP                                               16
+#define CP_REG_TO_MEM                                        62
+#define CP_REG_TO_SCRATCH                                    74
+#define CP_REG_WRITE                                         109
+#define CP_SCRATCH_TO_REG                                    77
+#define CP_SCRATCH_WRITE                                     76
+#define CP_SET_AMBLE                                         85
+#define CP_SET_DRAW_INIT_FLAGS                               75
+#define CP_SET_DRAW_STATE                                    67
+#define CP_SET_MARKER                                        101
+#define CP_SET_MODE                                          99
+#define CP_SET_PSEUDO_REG                                    86
+#define CP_THREAD_CONTROL                                    23
+#define CP_WAIT_FOR_IDLE                                     38
+#define CP_WAIT_MEM_WRITES                                   18
+#define CP_WAIT_REG_MEM                                      60
+#define CP_WAIT_TIMESTAMP                                    20
+#define CP_WHERE_AM_I                                        98
+#define PKT4                                                 4
+
+/* VGT event values. */
+#define CACHE_CLEAN                                          49
+#define CACHE_INVALIDATE                                     49
+#define CACHE_INVALIDATE7                                    51
+#define CCU_INVALIDATE_COLOR                                 25
+#define CCU_INVALIDATE_DEPTH                                 24
+#define LRZ_CACHE_INVALIDATE                                 40
+#define PC_CCU_INVALIDATE_COLOR                              25
+#define PC_CCU_INVALIDATE_DEPTH                              24
+#define PS_DONE_TS                                           3
+#define VS_DONE_TS                                           2
+
+/* CP thread selector values. */
+#define CP_SET_THREAD_BOTH                                   3
+#define CP_SET_THREAD_BR                                     1
+#define CP_SET_THREAD_BV                                     2
+
+/* Packet header constructors (exact A5xx/A6xx/A7xx PM4 format with odd parity, Linux adreno_gpu.h). */
+static __inline uint32_t adreno_pm4_odd_parity(uint32_t val)
+{
+    return (0x9669u >> (0xFu & (val ^ (val >> 4) ^ (val >> 8) ^ (val >> 12) ^
+                                (val >> 16) ^ (val >> 20) ^ (val >> 24) ^
+                                (val >> 28)))) & 1u;
+}
+#define ADRENO_PM4_TYPE4_HEADER(reg, count)                                 \
+    ((0x4u << 28) | ((uint32_t)(count) & 0x7fu) |                           \
+     (adreno_pm4_odd_parity((uint32_t)(count) & 0x7fu) << 7) |              \
+     (((uint32_t)(reg) & 0x3ffffu) << 8) |                                  \
+     (adreno_pm4_odd_parity((uint32_t)(reg) & 0x3ffffu) << 27))
+#define ADRENO_PM4_TYPE7_HEADER(op, count)                                  \
+    ((0x7u << 28) | ((uint32_t)(count) & 0x7fffu) |                         \
+     (adreno_pm4_odd_parity((uint32_t)(count) & 0x7fffu) << 15) |           \
+     (((uint32_t)(op) & 0x7fu) << 16) |                                     \
+     (adreno_pm4_odd_parity((uint32_t)(op) & 0x7fu) << 23))
+
+#endif /* ADRENO_A730_REGS_H */

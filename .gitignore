@@ -9,6 +9,7 @@ S901E Drivers/
 *.mbn
 *.elf
 *.bin
+*.fw
 *.msc
 *.e0*
 *.e1*
@@ -29,6 +30,7 @@ qc*.sys
 # Build artifacts, logs, dumps, and temporary files
 drivers/**/ARM64/
 drivers/**/x64/
+drivers/**/build/
 *.FileListAbsolute.txt
 *.obj
 *.pdb

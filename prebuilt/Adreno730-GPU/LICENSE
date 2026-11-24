@@ -1,0 +1,31 @@
+MIT License
+
+Copyright (c) 2026 Felipe00100 & S22 Windows Community Project Contributors
+  - SM8450 / Galaxy S22 (r0q) 5-stage hardware bring-up (adreno730_hw.c/.h)
+  - WDDM 2.0 GpuMmu & D3DKMT Escape ABI (adreno_wddm_escape.h, WDDM updates)
+  - A730 BR+BV concurrent binning sync, UBWC 4.0 init, ringbuffer wrap-around
+  - ARM64 SMC helper (scm_smc_arm64.asm) and build scripts (build_adreno730_gpu.ps1)
+
+Copyright (c) 2026 Adreno 730 WOA contributors
+  - Base adreno730-woa WDDM miniport, D3D12 UMD skeleton, and common GPU/PM4/HFI/SMMU modules
+
+Copyright (c) 2012-2026 freedreno contributors (MIT)
+  - Register offsets and PM4 definitions generated from the freedreno register XML database (include/adreno/a730_regs.h)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

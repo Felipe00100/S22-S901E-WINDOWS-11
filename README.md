@@ -1,6 +1,6 @@
 # Windows 11 ARM64 on Samsung Galaxy S22 5G (`SM-S901E` / `r0q` / SM8450)
 
-Open-source KMDF drivers, ACPI tables, `Mu-Silicium` UEFI patches, replication scripts, and safety documentation for running **Windows 11 Pro ARM64 (`26300.9457`)** on the **Samsung Galaxy S22 5G (Snapdragon 8 Gen 1 / SM8450 / Waipio, codename `r0q`)**.
+Open-source ARM64 drivers (including **Adreno 730 WDDM 2.0 + Mesa 26.1.0 Turnip Vulkan 1.4.348 3D Hardware Acceleration**), ACPI tables, `Mu-Silicium` UEFI patches, replication scripts, and safety documentation for running **Windows 11 Pro ARM64 (`26300.9457`)** on the **Samsung Galaxy S22 5G (Snapdragon 8 Gen 1 / SM8450 / Waipio, codename `r0q`)**.
 
 > [!CAUTION]
 > **MANDATORY BACKUP BEFORE DOING ANYTHING!**
@@ -8,7 +8,7 @@ Open-source KMDF drivers, ACPI tables, `Mu-Silicium` UEFI patches, replication s
 
 > [!NOTE]
 > **Legal & Licensing Notice**
-> Only original open-source drivers (MIT), UEFI/ACPI patches (BSD-2-Clause-Patent / MIT), and automation scripts are distributed here. **Proprietary Qualcomm, Microsoft, and Samsung binaries** (`Waipio-Base-Drivers`, `qcwlan8280.sys`, `wlanfw20.mbn`, `m320.bin`, `bdwlan.*`, Windows ISOs/WIMs, Samsung XBL DXEs, and personal test certificates) are **excluded via `.gitignore`** and must be obtained legally from official sources. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and [`docs/REPLICATION_GUIDE.md`](docs/REPLICATION_GUIDE.md).
+> Only open-source drivers (MIT), Mesa Turnip patches (MIT), UEFI/ACPI patches (BSD-2-Clause-Patent / MIT), and replication scripts (MIT) are distributed here. **Proprietary Qualcomm, Microsoft, and Samsung binaries** (`a730_sqe.fw`, `gmu_gen70000.bin`, `Waipio-Base-Drivers`, `qcwlan8280.sys`, `wlanfw20.mbn`, `m320.bin`, `bdwlan.*`, VC++ CRT DLLs, Windows ISOs/WIMs, Samsung XBL DXEs, and personal test certificates) are **excluded via `.gitignore`** and must be obtained legally from official sources. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and [`docs/REPLICATION_GUIDE.md`](docs/REPLICATION_GUIDE.md).
 
 ---
 
@@ -16,6 +16,7 @@ Open-source KMDF drivers, ACPI tables, `Mu-Silicium` UEFI patches, replication s
 
 | Subsystem | Status | Implementation |
 | :--- | :---: | :--- |
+| **GPU 3D Acceleration (Adreno 730 — Vulkan 1.4.348 + WDDM 2.0)** | ✅ Working | **`adreno730_wddm.sys` v1.0.0.23** (WDDM 2.0 GpuMmu, 5-stage SM8450 bring-up, SMMU-500, GMU/HFI, UBWC 4.0, BR+BV sync, 19.2 MHz timestamps, ringbuffer wrap-around, boot-safe `StartGpu=0`) + **Mesa 26.1.0 Turnip (`vulkan_freedreno.dll` ARM64)** via official `vulkan-1.dll` & Win32 WSI (**355–402 FPS** live 3D swapchain, `0.15 ms` Gouraud triangle, `276.7 MB/s` D3D12 HW copy) |
 | **UEFI (`Mu-Silicium` `r0q`) & Boot** | ✅ Working | Custom `Mu-Silicium` on `sda25` (`boot`), 15s auto-boot timer, power-button-free `Vol+ & Vol−` Enter, `UFS0._STA = 0x0F` |
 | **Internal UFS Storage (`sda41` NTFS)** | ✅ Working | Clean Windows 11 Pro ARM64 boot & clean shutdown (`rw` mount in TWRP, zero `fsck.ntfs`) |
 | **Display (SimpleFB)** | ✅ Working | Native FHD+ panel via UEFI framebuffer |
@@ -24,48 +25,49 @@ Open-source KMDF drivers, ACPI tables, `Mu-Silicium` UEFI patches, replication s
 | **USB 3.0 OTG Host (Mouse/Keyboard/Hub/Tethering)** | ✅ Working | `URS0` (`urssynopsys.sys`) + MAX77705 MUIC `0x06=0x09` + 5V/1500mA boost in UEFI |
 | **UEFI Charger Mode (`ChargerMode.efi`)** | ✅ Working | Live MAX77705 I2C5 telemetry (%, mV, mA, W, °C), 2.5A charging, OLED saver, button-free exit |
 | **1-Click TWRP Reboot (`Reiniciar_TWRP.cmd`)** | ✅ Working | ESP flag `\EFI\S22\reboot_twrp.flag` → PMK8350 `SDAM_2 0x7148` via `SPMIDxe` → warm reboot into TWRP (0 UFS writes) |
+| **TWRP Fast-Charge (`scripts/fc.sh`)** | ✅ Working | Clears `VOTER_USB_100MA` (`usb_conf_test=2`), `siop_level=100`, cores 1–7 offline, `powersave` |
+| **DWM / DXVK / OpenGL Desktop Offload** | 🔧 Next Phase | Vulkan 1.4.348 HW is live; DXVK/Zink + DWM desktop offload coming next |
 | **Wi-Fi 2.4 GHz TX (`s3e.e` PA)** | 🔧 Planned | Needs PMR735A `s3e.e` 2.2V PA enable via AOSS QMP (`0x0C300000`) in Windows |
-| **Battery % / Charge Limit (`max77705batt.sys`)** | 🧪 Experimental | Source in `drivers/max77705-battery/` — pending live bring-up (currently `_STA = 0` in `SSDT.asl`) |
-| **Dynamic USB-C / PD / Device Mode (`max77705usbc.sys`)** | 🧪 Experimental | Source in `drivers/max77705-usbc/` — pending live bring-up (currently `_STA = 0` in `SSDT.asl`) |
-| **GPU (Adreno 730), Audio, BT, Sensors, Camera, Modem** | ❌ Not Yet | Future phases (see [`CHECKLIST.md`](CHECKLIST.md)) |
+| **Battery % / USB-C PD (`max77705batt.sys` / `max77705usbc.sys`)** | 🧪 Experimental | Source in `drivers/max77705-*` — pending live bring-up (currently `_STA = 0` in `SSDT.asl`) |
+| **Audio, BT, Sensors, Camera, Modem** | ❌ Not Yet | Future phases (see [`CHECKLIST.md`](CHECKLIST.md)) |
 
 ---
 
 ## Repository Layout
 
 ```text
-├── LICENSE                        # MIT License (with BSD-2-Clause-Patent note for UEFI/ACPI)
-├── THIRD_PARTY_NOTICES.md         # Full licensing & legal sourcing notice
+├── LICENSE                        # MIT License (+ component license summary)
+├── THIRD_PARTY_NOTICES.md         # Full licensing, credits & legal sourcing notice
 ├── CHECKLIST.md                   # Verified hardware checklist (pt-BR)
-├── HANDOFF_NEXT_AI.md             # Technical architecture & next-steps handoff
 ├── docs/
-│   └── REPLICATION_GUIDE.md       # Complete step-by-step replication & backup guide
-├── prebuilt/                      # Compiled 100% open-source verified ARM64 drivers (.sys + .inf)
+│   └── REPLICATION_GUIDE.md       # Complete step-by-step replication, GPU & backup guide
+├── prebuilt/                      # Compiled 100% open-source verified ARM64 binaries (MIT, unsigned)
+│   ├── Adreno730-GPU/             #   adreno730_wddm.sys (v1.0.0.23), adreno730_d3d12.dll, vulkan_freedreno.dll (Mesa 26.1.0)
 │   ├── Touchscreen-FTS2BA61Y/     #   fts2ba61y.sys (v1.0.2.0)
 │   └── WiFi-WCN6855-PDC/          #   s22wlanpdc.sys (v1.0.19.0 hardened MSI bridge)
-├── drivers/                       # Full C source code for all custom ARM64 KMDF drivers
+├── drivers/                       # Full open-source driver code (MIT)
+│   ├── adreno730-wddm/            #   Verified: Adreno 730 WDDM 2.0 KMD + D3D12 UMD + build script
 │   ├── fts2ba61y-touch/           #   Verified: FTS2BA61Y HID Multitouch
 │   ├── s22-wlan-pdc/              #   Verified: DesignWare iMSI-RX -> GICD MSI bridge
 │   ├── max77705-battery/          #   Experimental: MAX77705 Fuel Gauge & Charger
 │   └── max77705-usbc/             #   Experimental: MAX77705 CCIC / USB-C / PD
-├── patches/mu-silicium/           # Working Mu-Silicium & Silicium-ACPI patches + source files
-│   ├── mu-silicium-r0q.patch      #   Unified git diff against Project-Silicium/Mu-Silicium @ cc64daf0
-│   ├── silicium-acpi-r0q.patch    #   Unified git diff against Project-Silicium/Silicium-ACPI @ f798933
-│   ├── PlatformBootManager.c      #   PCIe0 Gen2 x1, WCN6855, SMMU bypass, iMSI-RX, Touch, USB OTG, TWRP flag
-│   ├── S22Pcie0PhyTbl.h           #   SM8450 QMP Gen3x1 PHY register table
-│   ├── MemoryMapLib.c             #   NoHob MMIO mappings for GCC / PCIe0 AHB & AXI
-│   ├── ChargerMode.c / .inf       #   UEFI MAX77705 Charger Mode app
-│   ├── RebootRecovery.c / .inf    #   UEFI Reboot to Recovery app
-│   └── Boot-Manager.patch         #   15s auto-boot + Vol+/Vol- Enter
+├── patches/
+│   ├── mesa-turnip-woa/           #   Mesa 26.1.0 Turnip Windows ARM64 WDDM backend (tu_knl_wddm.cc) + patch + build script
+│   └── mu-silicium/               #   Working Mu-Silicium & Silicium-ACPI UEFI patches (cc64daf0 / f798933)
 ├── acpi/
-│   ├── r0q/                       #   Working r0q ACPI tables: SSDT.asl/.aml, APIC.dsl/.aml, MCFG.dsl/.aml, AcpiTables.inf
-│   └── waipio/                    #   Working Waipio DSDT.asl/.aml (UFS0._STA = 0x0F fix)
+│   ├── r0q/                       #   Working r0q ACPI tables: SSDT, APIC (0x0D MSI), MCFG, AcpiTables.inf
+│   └── waipio/                    #   Working Waipio DSDT (UFS0._STA = 0x0F fix)
 └── scripts/
-    ├── build_and_link_arm64.ps1   #   Full ARM64 build + link + .cat + test-signing
+    ├── install_adreno730_gpu.ps1  #   Install Adreno 730 WDDM 2.0 + Turnip Vulkan 1.4.348 ICD (boot-safe)
+    ├── build_and_link_arm64.ps1   #   ARM64 build + link + .cat + test-signing for KMDF drivers
+    ├── build_drivers_clang_arm64.sh # Clang ARM64 helper called by build_and_link_arm64.ps1
     ├── sign_and_stage_drivers.ps1 #   Catalog & sign drivers locally with your own test cert
+    ├── stage_s901e_drivers.ps1    #   Stage and inject S901E drivers into a mounted Windows image
     ├── patch_qcwlan8280_wc.ps1    #   Local 3-word MmWriteCombined DMA patcher for qcwlan8280.sys
+    ├── S22-USB-SSH-MTP-Setup.ps1  #   Configure OpenSSH + USB networking on S22
+    ├── Set-S22ChargeLimit.ps1     #   Configure MAX77705 charge limit (50–100%)
     ├── Reiniciar_TWRP.cmd         #   1-click Desktop -> UEFI -> TWRP reboot
-    ├── fc.sh                      #   TWRP fast-charge helper (siop_level=100 + powersave)
+    ├── fc.sh                      #   TWRP fast-charge helper (usb_conf_test=2 + siop_level=100)
     └── UFS-PARTITIONS-SAFETY.md   #   Critical UFS partition protection & backup guide
 ```
 
@@ -74,11 +76,14 @@ Open-source KMDF drivers, ACPI tables, `Mu-Silicium` UEFI patches, replication s
 ## Quick Start
 1. **Back up everything first** → [`docs/REPLICATION_GUIDE.md#1-mandatory-backups`](docs/REPLICATION_GUIDE.md) & [`scripts/UFS-PARTITIONS-SAFETY.md`](scripts/UFS-PARTITIONS-SAFETY.md).
 2. **Build `Mu-Silicium` for `r0q`** using `patches/mu-silicium/mu-silicium-r0q.patch` and `silicium-acpi-r0q.patch` (base commits `cc64daf0` / `f798933`).
-3. **Install Windows 11 ARM64**, stage your locally obtained Qualcomm Waipio + WCN6855 drivers, run `scripts/patch_qcwlan8280_wc.ps1` on your `qcwlan8280.sys`, and install our signed `fts2ba61y.sys` + `s22wlanpdc.sys` (`prebuilt/` or rebuilt from `drivers/`).
+3. **Install Windows 11 ARM64**, stage your locally obtained Qualcomm Waipio + WCN6855 drivers, run `scripts/patch_qcwlan8280_wc.ps1` on your `qcwlan8280.sys`, and install our signed `fts2ba61y.sys` + `s22wlanpdc.sys`.
+4. **Enable Adreno 730 3D Vulkan 1.4.348 Acceleration**: place official `linux-firmware` `a730_sqe.fw` (v1.81) + `gmu_gen70000.bin` in `C:\Windows\System32\drivers\qcom\`, install Microsoft VC++ ARM64 Redistributable & Khronos Vulkan Runtime (`vulkan-1.dll`), sign `prebuilt/Adreno730-GPU/` (or rebuild from `drivers/adreno730-wddm/` + `patches/mesa-turnip-woa/`), and run `scripts/install_adreno730_gpu.ps1 -EnableGpuNow`.
 
 Full instructions are in **[`docs/REPLICATION_GUIDE.md`](docs/REPLICATION_GUIDE.md)**.
 
 ## Credits
-- [Project-Silicium/Mu-Silicium](https://github.com/Project-Silicium/Mu-Silicium) & [Silicium-ACPI](https://github.com/Project-Silicium/Silicium-ACPI)
-- [SM-S901E-Linux-Part-Working](https://github.com/Felipe00100/SM-S901E-Linux-Part-Working) / Linux 7.2 mainline SM8450 & `r0q` hardware references
-- [WOA-Project](https://github.com/WOA-Project) community
+- **[Mesa 3D / Freedreno / Turnip](https://gitlab.freedesktop.org/mesa/mesa)** & **[`arehnman/virtio-win-mesa`](https://github.com/arehnman/virtio-win-mesa)** — Mesa 26.1.0 Turnip Vulkan 1.4 driver (MIT)
+- **`adreno730-woa` contributors** — Base Adreno 730 WDDM/D3D12/common framework (MIT)
+- **[Project-Silicium/Mu-Silicium](https://github.com/Project-Silicium/Mu-Silicium)** & **[Silicium-ACPI](https://github.com/Project-Silicium/Silicium-ACPI)** — UEFI/ACPI platform base (BSD-2-Clause-Patent / MIT)
+- **[SM-S901E-Linux-Part-Working](https://github.com/Felipe00100/SM-S901E-Linux-Part-Working)** & **Linux Kernel `drm/msm` / SM8450 mainline** — Hardware register & protocol references
+- **[WOA-Project](https://github.com/WOA-Project)** community

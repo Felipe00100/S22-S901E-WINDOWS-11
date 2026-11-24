@@ -1,0 +1,21 @@
+# Meson cross-file template for Windows ARM64 (clang-cl + lld-link on WSL2/Linux)
+# Rendered automatically by build_turnip_arm64.sh
+[binaries]
+c = ['/usr/bin/clang-cl', '--target=aarch64-pc-windows-msvc', '-fuse-ld=lld', '-imsvc', '@MSVC_DIR@/include', '-imsvc', '@WDK_DIR@/Include/@WDK_VER@/ucrt', '-imsvc', '@WDK_DIR@/Include/@WDK_VER@/um', '-imsvc', '@WDK_DIR@/Include/@WDK_VER@/shared', '-imsvc', '@WDK_DIR@/Include/@WDK_VER@/winrt']
+cpp = ['/usr/bin/clang-cl', '--target=aarch64-pc-windows-msvc', '-fuse-ld=lld', '-imsvc', '@MSVC_DIR@/include', '-imsvc', '@WDK_DIR@/Include/@WDK_VER@/ucrt', '-imsvc', '@WDK_DIR@/Include/@WDK_VER@/um', '-imsvc', '@WDK_DIR@/Include/@WDK_VER@/shared', '-imsvc', '@WDK_DIR@/Include/@WDK_VER@/winrt']
+c_ld = '/usr/bin/lld-link'
+cpp_ld = '/usr/bin/lld-link'
+ar = '/usr/bin/llvm-lib'
+windres = '/usr/bin/llvm-rc'
+
+[built-in options]
+c_args = ['/clang:-mno-outline-atomics', '/clang:-march=armv8.2-a', '-Wno-microsoft-enum-value', '-Wno-unused-command-line-argument', '-D_CRT_SECURE_NO_WARNINGS', '-DWIN32_LEAN_AND_MEAN']
+cpp_args = ['/clang:-mno-outline-atomics', '/clang:-march=armv8.2-a', '-Wno-microsoft-enum-value', '-Wno-unused-command-line-argument', '-D_CRT_SECURE_NO_WARNINGS', '-DWIN32_LEAN_AND_MEAN']
+c_link_args = ['/LIBPATH:@MSVC_DIR@/lib/arm64', '/LIBPATH:@WDK_DIR@/Lib/@WDK_VER@/ucrt/arm64', '/LIBPATH:@WDK_DIR@/Lib/@WDK_VER@/um/arm64']
+cpp_link_args = ['/LIBPATH:@MSVC_DIR@/lib/arm64', '/LIBPATH:@WDK_DIR@/Lib/@WDK_VER@/ucrt/arm64', '/LIBPATH:@WDK_DIR@/Lib/@WDK_VER@/um/arm64']
+
+[host_machine]
+system = 'windows'
+cpu_family = 'aarch64'
+cpu = 'aarch64'
+endian = 'little'

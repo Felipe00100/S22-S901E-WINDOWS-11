@@ -1,0 +1,762 @@
+diff --git a/meson.options b/meson.options
+index 9703852..60c0397 100644
+--- a/meson.options
++++ b/meson.options
+@@ -230,7 +230,7 @@ option(
+   'freedreno-kmds',
+   type : 'array',
+   value : ['msm'],
+-  choices : ['msm', 'kgsl', 'virtio', 'wsl'],
++  choices : ['msm', 'kgsl', 'virtio', 'wsl', 'wddm'],
+   description : 'List of kernel-mode drivers to enable for freedreno ' +
+                 'gallium and vulkan driver',
+ )
+diff --git a/src/compiler/isaspec/isaspec_decode_impl.c b/src/compiler/isaspec/isaspec_decode_impl.c
+index 452a25a..5f5b268 100644
+--- a/src/compiler/isaspec/isaspec_decode_impl.c
++++ b/src/compiler/isaspec/isaspec_decode_impl.c
+@@ -32,6 +32,30 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#ifdef _WIN32
++#include <stdarg.h>
++static char *isa_win_strndup(const char *s, size_t n)
++{
++   size_t len = strnlen(s, n);
++   char *r = (char *)malloc(len + 1);
++   if (r) { memcpy(r, s, len); r[len] = '\0'; }
++   return r;
++}
++static int isa_win_vasprintf(char **strp, const char *fmt, va_list ap)
++{
++   va_list ap2;
++   va_copy(ap2, ap);
++   int len = _vscprintf(fmt, ap2);
++   va_end(ap2);
++   if (len < 0) return -1;
++   *strp = (char *)malloc((size_t)len + 1);
++   if (!*strp) return -1;
++   return vsnprintf(*strp, (size_t)len + 1, fmt, ap);
++}
++#define strndup isa_win_strndup
++#define vasprintf isa_win_vasprintf
++#endif
++
+ 
+ #include "util/bitset.h"
+ #include "util/compiler.h"
+diff --git a/src/freedreno/common/freedreno_dev_info.c b/src/freedreno/common/freedreno_dev_info.c
+index 24779e1..3e15a3e 100644
+--- a/src/freedreno/common/freedreno_dev_info.c
++++ b/src/freedreno/common/freedreno_dev_info.c
+@@ -16,6 +16,9 @@ struct fd_dev_rec {
+    const struct fd_dev_info *info;
+ };
+ 
++#ifdef _WIN32
++#define strtok_r strtok_s
++#endif
+ #include "freedreno_devices.h"
+ 
+ /**
+diff --git a/src/freedreno/common/freedreno_rd_output.c b/src/freedreno/common/freedreno_rd_output.c
+index 3a5d805..88ac090 100644
+--- a/src/freedreno/common/freedreno_rd_output.c
++++ b/src/freedreno/common/freedreno_rd_output.c
+@@ -1,3 +1,4 @@
++#ifndef _WIN32
+ /*
+  * Copyright © 2024 Igalia S.L.
+  * SPDX-License-Identifier: MIT
+@@ -358,3 +359,14 @@ fd_rd_output_end(struct fd_rd_output *output)
+    gzclose(output->file);
+    output->file = NULL;
+ }
++
++#else
++#include "freedreno_rd_output.h"
++struct fd_rd_dump_env fd_rd_dump_env;
++void fd_rd_dump_env_init(void) {}
++void fd_rd_output_init(struct fd_rd_output *output, const char *output_name) { (void)output; (void)output_name; }
++void fd_rd_output_fini(struct fd_rd_output *output) { (void)output; }
++bool fd_rd_output_begin(struct fd_rd_output *output, uint32_t frame, uint32_t submit_idx) { (void)output; (void)frame; (void)submit_idx; return false; }
++void fd_rd_output_write_section(struct fd_rd_output *output, enum rd_sect_type type, const void *buffer, int size) { (void)output; (void)type; (void)buffer; (void)size; }
++void fd_rd_output_end(struct fd_rd_output *output) { (void)output; }
++#endif
+diff --git a/src/freedreno/common/freedreno_rd_output.h b/src/freedreno/common/freedreno_rd_output.h
+index 05c86c5..5f257f3 100644
+--- a/src/freedreno/common/freedreno_rd_output.h
++++ b/src/freedreno/common/freedreno_rd_output.h
+@@ -8,7 +8,14 @@
+ 
+ #include <stdbool.h>
+ #include <stdint.h>
++#ifndef _WIN32
+ #include <zlib.h>
++#else
++typedef void *gzFile;
++#ifndef PATH_MAX
++#define PATH_MAX 260
++#endif
++#endif
+ 
+ #include "redump.h"
+ #include "util/u_dynarray.h"
+diff --git a/src/freedreno/common/redump.h b/src/freedreno/common/redump.h
+index 68aa688..2f944e3 100644
+--- a/src/freedreno/common/redump.h
++++ b/src/freedreno/common/redump.h
+@@ -6,7 +6,12 @@
+ #ifndef REDUMP_H_
+ #define REDUMP_H_
+ 
++#ifndef _WIN32
+ #include <unistd.h>
++#else
++#include <io.h>
++#define write _write
++#endif
+ 
+ enum rd_sect_type {
+    RD_NONE,
+diff --git a/src/freedreno/ir3/instr-a3xx.h b/src/freedreno/ir3/instr-a3xx.h
+index 5185437..b449359 100644
+--- a/src/freedreno/ir3/instr-a3xx.h
++++ b/src/freedreno/ir3/instr-a3xx.h
+@@ -14,8 +14,8 @@
+ #include <stdio.h>
+ 
+ /* clang-format off */
+-void ir3_assert_handler(const char *expr, const char *file, int line,
+-                        const char *func) __attribute__((weak)) __attribute__((__noreturn__));
++extern void ir3_assert_handler(const char *expr, const char *file, int line,
++                        const char *func)  __attribute__((__noreturn__));
+ /* clang-format on */
+ 
+ /* A wrapper for assert() that allows overriding handling of a failed
+diff --git a/src/freedreno/ir3/ir3_disk_cache.c b/src/freedreno/ir3/ir3_disk_cache.c
+index 3b732d3..aa2bcbc 100644
+--- a/src/freedreno/ir3/ir3_disk_cache.c
++++ b/src/freedreno/ir3/ir3_disk_cache.c
+@@ -34,6 +34,10 @@ ir3_disk_cache_init(struct ir3_compiler *compiler)
+       return;
+ 
+    const char *renderer = fd_dev_name(compiler->dev_id);
++#ifdef _WIN32
++   const uint8_t *id_sha1 = (const uint8_t *)("mesa-turnip-woa-" PACKAGE_VERSION);
++   unsigned build_id_len = (unsigned)strlen((const char *)id_sha1);
++#else
+    const struct build_id_note *note =
+       build_id_find_nhdr_for_addr(ir3_disk_cache_init);
+    unsigned build_id_len = build_id_length(note);
+@@ -41,6 +45,7 @@ ir3_disk_cache_init(struct ir3_compiler *compiler)
+ 
+    const uint8_t *id_sha1 = build_id_data(note);
+    assert(id_sha1);
++#endif
+ 
+    blake3_hasher ctx;
+    uint8_t blake3[BLAKE3_KEY_LEN];
+diff --git a/src/freedreno/ir3/ir3_lexer.l b/src/freedreno/ir3/ir3_lexer.l
+index 2aef2f5..aef19e9 100644
+--- a/src/freedreno/ir3/ir3_lexer.l
++++ b/src/freedreno/ir3/ir3_lexer.l
+@@ -41,6 +41,15 @@ size_t input_buffer_len = 256;
+  * Return up to max_size chars from the current input_buffer.  Reads a new
+  * line into the input_buffer if it is currently empty.
+  */
++#ifdef _WIN32
++static ptrdiff_t ir3_win_getline(char **lineptr, size_t *n, FILE *stream)
++{
++   if (!*lineptr || *n == 0) { *n = 256; *lineptr = malloc(*n); }
++   if (!*lineptr || !fgets(*lineptr, (int)*n, stream)) return -1;
++   return (ptrdiff_t)strlen(*lineptr);
++}
++#define getline ir3_win_getline
++#endif
+ static size_t yy_input(char *buf, size_t max_size)
+ {
+   if (!input_buffer)
+@@ -116,6 +125,7 @@ static int parse_reg(const char *str)
+ %}
+ 
+ %option noyywrap
++%option nounistd
+ %option prefix="ir3_yy"
+ 
+ %%
+diff --git a/src/freedreno/ir3/ir3_parser_support.c b/src/freedreno/ir3/ir3_parser_support.c
+index 79cc989..746f23b 100644
+--- a/src/freedreno/ir3/ir3_parser_support.c
++++ b/src/freedreno/ir3/ir3_parser_support.c
+@@ -6,6 +6,7 @@
+ #include <string.h>
+ 
+ #include "util/half_float.h"
++#include "util/simple_mtx.h"
+ #include "util/u_math.h"
+ 
+ #include "ir3/instr-a3xx.h"
+@@ -29,7 +30,7 @@
+ #define IR3_REG_ABS    IR3_REG_FABS
+ #define IR3_REG_NEGATE IR3_REG_FNEG
+ 
+-static pthread_mutex_t ir3_parse_mtx = PTHREAD_MUTEX_INITIALIZER;
++static simple_mtx_t ir3_parse_mtx = SIMPLE_MTX_INITIALIZER;
+ 
+ static struct ir3_kernel_info *info;
+ static struct ir3_shader_variant *variant;
+@@ -342,7 +343,7 @@ yyerror(const char *error)
+ struct ir3 *
+ ir3_parse(struct ir3_shader_variant *v, struct ir3_kernel_info *k, FILE *f)
+ {
+-   pthread_mutex_lock(&ir3_parse_mtx);
++   simple_mtx_lock(&ir3_parse_mtx);
+ 
+    ir3_yyset_lineno(1);
+    ir3_yyset_input(f);
+@@ -363,6 +364,6 @@ ir3_parse(struct ir3_shader_variant *v, struct ir3_kernel_info *k, FILE *f)
+    ralloc_free(ir3_parser_dead_ctx);
+ 
+    struct ir3 *ir = variant->ir;
+-   pthread_mutex_unlock(&ir3_parse_mtx);
++   simple_mtx_unlock(&ir3_parse_mtx);
+    return ir;
+ }
+diff --git a/src/freedreno/ir3/ir3_shader.c b/src/freedreno/ir3/ir3_shader.c
+index 37300b5..aa60d91 100644
+--- a/src/freedreno/ir3/ir3_shader.c
++++ b/src/freedreno/ir3/ir3_shader.c
+@@ -19,6 +19,16 @@
+ #include "ir3_nir.h"
+ #include "ir3_parser.h"
+ #include "ir3_shader.h"
++#ifdef _WIN32
++static FILE *ir3_win_open_memstream(char **ptr, size_t *sizeloc)
++{
++   *ptr = (char *)calloc(1, 1);
++   *sizeloc = 0;
++   return tmpfile();
++}
++#define open_memstream ir3_win_open_memstream
++#endif
++
+ 
+ #include "nir/nir.h"
+ #include "nir/nir_xfb_info.h"
+diff --git a/src/freedreno/perfcntrs/freedreno_dt.c b/src/freedreno/perfcntrs/freedreno_dt.c
+index 7a5c162..5f0df59 100644
+--- a/src/freedreno/perfcntrs/freedreno_dt.c
++++ b/src/freedreno/perfcntrs/freedreno_dt.c
+@@ -1,3 +1,4 @@
++#ifndef _WIN32
+ /*
+  * Copyright © 2021 Google, Inc.
+  * All Rights Reserved.
+@@ -237,3 +238,12 @@ fd_dt_find_io(void)
+ 
+    return io;
+ }
++
++#else
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++#include "freedreno_dt.h"
++bool fd_dt_find_freqs(uint32_t *min_freq, uint32_t *max_freq) { (void)min_freq; (void)max_freq; return false; }
++void *fd_dt_find_io(void) { return NULL; }
++#endif
+diff --git a/src/freedreno/vulkan/meson.build b/src/freedreno/vulkan/meson.build
+index d8c17e6..b8e8bef 100644
+--- a/src/freedreno/vulkan/meson.build
++++ b/src/freedreno/vulkan/meson.build
+@@ -104,6 +104,10 @@ if with_platform_wayland
+   tu_wsi = true
+ endif
+ 
++if with_platform_windows
++  tu_wsi = true
++endif
++
+ if system_has_kms_drm and not with_platform_android
+   tu_wsi = true
+ endif
+@@ -121,6 +125,16 @@ if freedreno_kmds.contains('kgsl')
+   libtu_files += files('tu_knl_kgsl.cc')
+ endif
+ 
++if freedreno_kmds.contains('wddm')
++  tu_flags += '-DTU_HAS_WDDM'
++  libtu_files += files('tu_knl_wddm.cc')
++  tu_deps += [
++    cc.find_library('gdi32'),
++    cc.find_library('dxgi'),
++    cc.find_library('advapi32'),
++  ]
++endif
++
+ if freedreno_kmds.contains('msm')
+   tu_flags += '-DTU_HAS_MSM'
+   libtu_files += files('tu_knl_drm_msm.cc', 'tu_knl_drm.cc')
+@@ -205,6 +219,7 @@ libvulkan_freedreno = shared_library(
+   c_args : [no_override_init_args, tu_flags],
+   cpp_args : [tu_cpp_args, tu_flags],
+   gnu_symbol_visibility : 'hidden',
++  vs_module_defs : host_machine.system() == 'windows' ? vulkan_api_def : [],
+   link_args : [vulkan_icd_link_args, ld_args_bsymbolic, ld_args_gc_sections, ld_args_build_id],
+   link_depends : vulkan_icd_link_depends,
+   install : true,
+diff --git a/src/freedreno/vulkan/tu_clear_blit.cc b/src/freedreno/vulkan/tu_clear_blit.cc
+index 54e2fec..cc724f7 100644
+--- a/src/freedreno/vulkan/tu_clear_blit.cc
++++ b/src/freedreno/vulkan/tu_clear_blit.cc
+@@ -3585,10 +3585,15 @@ tu_CmdCopyBuffer2(VkCommandBuffer commandBuffer,
+                                   vk_buffer_address(&dst_buffer->vk, region->dstOffset);
+ 
+       uint32_t region_block_size = 1;
++#ifdef TU_HAS_WDDM
++      if (!(alignment_target & 3))
++         region_block_size = 4;
++#else
+       if (!(alignment_target & 15))
+          region_block_size = 16;
+       else if (!(alignment_target & 3))
+          region_block_size = 4;
++#endif
+ 
+       block_size = MIN2(block_size, region_block_size);
+    }
+@@ -3633,10 +3638,15 @@ tu_CmdUpdateBuffer(VkCommandBuffer commandBuffer,
+    /* As in tu_CmdCopyBuffer2(), the largest viable block size is used. */
+    uint64_t alignment_target = dataSize | vk_buffer_address(&buffer->vk, dstOffset);
+    uint32_t block_size = 1;
++#ifdef TU_HAS_WDDM
++   if (!(alignment_target & 3))
++      block_size = 4;
++#else
+    if (!(alignment_target & 15))
+       block_size = 16;
+    else if (!(alignment_target & 3))
+       block_size = 4;
++#endif
+ 
+    bool unaligned_store = false;
+    memcpy(tmp.map, pData, dataSize);
+diff --git a/src/freedreno/vulkan/tu_common.h b/src/freedreno/vulkan/tu_common.h
+index d3564eb..af01f05 100644
+--- a/src/freedreno/vulkan/tu_common.h
++++ b/src/freedreno/vulkan/tu_common.h
+@@ -11,7 +11,30 @@
+ #define TU_COMMON_H
+ 
+ #include <assert.h>
++#ifndef _WIN32
+ #include <pthread.h>
++#else
++#include "c11/threads.h"
++typedef mtx_t pthread_mutex_t;
++typedef cnd_t pthread_cond_t;
++typedef int pthread_condattr_t;
++static inline int pthread_mutex_init(pthread_mutex_t *m, const void *attr) { (void)attr; return mtx_init(m, mtx_plain) == thrd_success ? 0 : -1; }
++static inline int pthread_mutex_destroy(pthread_mutex_t *m) { mtx_destroy(m); return 0; }
++static inline int pthread_mutex_lock(pthread_mutex_t *m) { return mtx_lock(m) == thrd_success ? 0 : -1; }
++static inline int pthread_mutex_unlock(pthread_mutex_t *m) { return mtx_unlock(m) == thrd_success ? 0 : -1; }
++static inline int pthread_condattr_init(pthread_condattr_t *a) { *a = 0; return 0; }
++static inline int pthread_condattr_destroy(pthread_condattr_t *a) { (void)a; return 0; }
++static inline int pthread_condattr_setclock(pthread_condattr_t *a, int c) { (void)a; (void)c; return 0; }
++static inline int pthread_cond_init(pthread_cond_t *c, const pthread_condattr_t *a) { (void)a; return cnd_init(c) == thrd_success ? 0 : -1; }
++static inline int pthread_cond_destroy(pthread_cond_t *c) { cnd_destroy(c); return 0; }
++static inline int pthread_cond_broadcast(pthread_cond_t *c) { return cnd_broadcast(c) == thrd_success ? 0 : -1; }
++static inline int pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m) { return cnd_wait(c, m) == thrd_success ? 0 : -1; }
++#ifndef CLOCK_MONOTONIC
++#define CLOCK_MONOTONIC 1
++#endif
++static inline int getpagesize(void) { return 4096; }
++static inline int clock_gettime(int clk, struct timespec *ts) { (void)clk; return timespec_get(ts, TIME_UTC) ? 0 : -1; }
++#endif
+ #include <stdbool.h>
+ #include <stdint.h>
+ #include <stdio.h>
+diff --git a/src/freedreno/vulkan/tu_cs_breadcrumbs.cc b/src/freedreno/vulkan/tu_cs_breadcrumbs.cc
+index d607623..0d6271e 100644
+--- a/src/freedreno/vulkan/tu_cs_breadcrumbs.cc
++++ b/src/freedreno/vulkan/tu_cs_breadcrumbs.cc
+@@ -1,3 +1,4 @@
++#ifndef _WIN32
+ /*
+  * Copyright © 2022 Igalia S.L.
+  * SPDX-License-Identifier: MIT
+@@ -219,3 +220,11 @@ tu_cs_emit_sync_breadcrumb(struct tu_cs *cs, uint8_t opcode, uint16_t cnt)
+    if (before_packet)
+       cs->breadcrumb_emit_after = cnt;
+ }
++
++#else
++#include "tu_cs.h"
++#include "tu_device.h"
++void tu_breadcrumbs_init(struct tu_device *device) { (void)device; }
++void tu_breadcrumbs_finish(struct tu_device *device) { (void)device; }
++void tu_cs_emit_sync_breadcrumb(struct tu_cs *cs, uint8_t opcode, uint16_t data) { (void)cs; (void)opcode; (void)data; }
++#endif
+diff --git a/src/freedreno/vulkan/tu_device.cc b/src/freedreno/vulkan/tu_device.cc
+index a41b93c..bc86f22 100644
+--- a/src/freedreno/vulkan/tu_device.cc
++++ b/src/freedreno/vulkan/tu_device.cc
+@@ -112,6 +112,9 @@ static const struct vk_instance_extension_table tu_instance_extensions_supported
+ #ifdef VK_USE_PLATFORM_XLIB_KHR
+    .KHR_xlib_surface                    = true,
+ #endif
++#ifdef VK_USE_PLATFORM_WIN32_KHR
++   .KHR_win32_surface                   = true,
++#endif
+ #ifdef VK_USE_PLATFORM_DISPLAY_KHR
+    .EXT_acquire_drm_display             = true,
+ #endif
+@@ -1795,7 +1798,8 @@ tu_physical_device_finish(struct tu_physical_device *device)
+    tu_wsi_finish(device);
+ #endif
+ 
+-   close(device->local_fd);
++   if (device->local_fd != -1)
++      close(device->local_fd);
+    if (device->master_fd != -1)
+       close(device->master_fd);
+ 
+@@ -1915,8 +1919,10 @@ tu_CreateInstance(const VkInstanceCreateInfo *pCreateInfo,
+       return vk_error(NULL, result);
+    }
+ 
++#ifndef _WIN32
+    instance->vk.physical_devices.try_create_for_drm =
+       tu_physical_device_try_create;
++#endif
+    instance->vk.physical_devices.enumerate = tu_enumerate_devices;
+    instance->vk.physical_devices.destroy = tu_destroy_physical_device;
+ 
+diff --git a/src/freedreno/vulkan/tu_device.h b/src/freedreno/vulkan/tu_device.h
+index c9f521f..aa9fe8a 100644
+--- a/src/freedreno/vulkan/tu_device.h
++++ b/src/freedreno/vulkan/tu_device.h
+@@ -106,6 +106,9 @@ struct tu_physical_device
+ 
+    int kgsl_dma_fd;
+    enum tu_kgsl_dma_type kgsl_dma_type;
++#ifdef TU_HAS_WDDM
++   uint64_t wddm_luid;
++#endif
+ 
+    uint32_t gmem_size;
+    uint64_t gmem_base;
+@@ -496,6 +499,14 @@ struct tu_device
+ #ifdef TU_HAS_VIRTIO
+    struct tu_virtio_device *vdev;
+ #endif
++#ifdef TU_HAS_WDDM
++   uint32_t wddm_adapter;
++   uint32_t wddm_device;
++   uint32_t wddm_paging_queue;
++   uint32_t wddm_paging_sync;
++   volatile uint64_t *wddm_paging_fence_cpu;
++   uint32_t wddm_next_handle;
++#endif
+ 
+    uint32_t submit_count;
+ 
+diff --git a/src/freedreno/vulkan/tu_knl.cc b/src/freedreno/vulkan/tu_knl.cc
+index 081393c..798d724 100644
+--- a/src/freedreno/vulkan/tu_knl.cc
++++ b/src/freedreno/vulkan/tu_knl.cc
+@@ -7,6 +7,7 @@
+  * Copyright © 2015 Intel Corporation
+  */
+ 
++#ifndef _WIN32
+ #include <fcntl.h>
+ 
+ #ifdef MAJOR_IN_MKDEV
+@@ -17,6 +18,7 @@
+ #endif
+ 
+ #include <sys/mman.h>
++#endif
+ 
+ #include "util/cache_ops.h"
+ #include "util/libdrm.h"
+@@ -131,6 +133,7 @@ tu_bo_unmap(struct tu_device *dev, struct tu_bo *bo, bool reserve)
+ 
+    TU_RMV(bo_unmap, dev, bo);
+ 
++#ifndef _WIN32
+    if (reserve) {
+       void *map = mmap(bo->map, bo->size, PROT_NONE,
+                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+@@ -140,6 +143,7 @@ tu_bo_unmap(struct tu_device *dev, struct tu_bo *bo, bool reserve)
+    } else {
+       munmap(bo->map, bo->size);
+    }
++#endif
+ 
+    bo->map = NULL;
+ 
+@@ -342,6 +346,10 @@ tu_enumerate_devices(struct vk_instance *vk_instance)
+       mesa_logi("Found compatible device '%s'.", path);
+ 
+    return result;
++#elif defined(TU_HAS_WDDM)
++   struct tu_instance *instance =
++      container_of(vk_instance, struct tu_instance, vk);
++   return tu_knl_wddm_load(instance);
+ #else
+    return VK_ERROR_INCOMPATIBLE_DRIVER;
+ #endif
+@@ -355,6 +363,9 @@ tu_physical_device_try_create(struct vk_instance *vk_instance,
+                               struct _drmDevice *drm_device,
+                               struct vk_physical_device **out)
+ {
++#ifdef _WIN32
++   return VK_ERROR_INCOMPATIBLE_DRIVER;
++#else
+    struct tu_instance *instance =
+       container_of(vk_instance, struct tu_instance, vk);
+ 
+@@ -470,4 +481,5 @@ out:
+    drmFreeVersion(version);
+ 
+    return result;
++#endif
+ }
+diff --git a/src/freedreno/vulkan/tu_knl.h b/src/freedreno/vulkan/tu_knl.h
+index 4c2bf6a..4077e93 100644
+--- a/src/freedreno/vulkan/tu_knl.h
++++ b/src/freedreno/vulkan/tu_knl.h
+@@ -57,6 +57,9 @@ struct tu_bo {
+     */
+    int shared_fd;
+ #endif
++#ifdef TU_HAS_WDDM
++   uint32_t wddm_alloc_handle;
++#endif
+ 
+    bool implicit_sync : 1;
+    bool never_unmap : 1;
+@@ -273,6 +276,11 @@ VkResult tu_knl_drm_virtio_load(struct tu_instance *instance,
+ 
+ VkResult
+ tu_enumerate_devices(struct vk_instance *vk_instance);
++
++#ifdef TU_HAS_WDDM
++VkResult
++tu_knl_wddm_load(struct tu_instance *instance);
++#endif
+ VkResult
+ tu_physical_device_try_create(struct vk_instance *vk_instance,
+                               struct _drmDevice *drm_device,
+diff --git a/src/freedreno/vulkan/tu_query_pool.cc b/src/freedreno/vulkan/tu_query_pool.cc
+index 3c65ff8..405a257 100644
+--- a/src/freedreno/vulkan/tu_query_pool.cc
++++ b/src/freedreno/vulkan/tu_query_pool.cc
+@@ -8,7 +8,9 @@
+ 
+ #include "tu_query_pool.h"
+ 
++#ifndef _WIN32
+ #include <fcntl.h>
++#endif
+ 
+ #include "nir/nir_builder.h"
+ #include "util/os_time.h"
+diff --git a/src/freedreno/vulkan/tu_wsi.cc b/src/freedreno/vulkan/tu_wsi.cc
+index 12b694b..16865c5 100644
+--- a/src/freedreno/vulkan/tu_wsi.cc
++++ b/src/freedreno/vulkan/tu_wsi.cc
+@@ -11,7 +11,9 @@
+ #include "drm-uapi/drm_fourcc.h"
+ 
+ #include "vk_util.h"
++#ifndef _WIN32
+ #include "wsi_common_drm.h"
++#endif
+ 
+ #include "tu_device.h"
+ 
+@@ -38,7 +40,11 @@ tu_wsi_init(struct tu_physical_device *physical_device)
+ {
+    VkResult result;
+ 
++#ifdef _WIN32
++   const struct wsi_device_options options = { .sw_device = true };
++#else
+    const struct wsi_device_options options = { .sw_device = false };
++#endif
+    result = wsi_device_init(&physical_device->wsi_device,
+                             tu_physical_device_to_handle(physical_device),
+                             tu_wsi_proc_addr,
+@@ -49,7 +55,11 @@ tu_wsi_init(struct tu_physical_device *physical_device)
+    if (result != VK_SUCCESS)
+       return result;
+ 
++#ifdef _WIN32
++   physical_device->wsi_device.supports_modifiers = false;
++#else
+    physical_device->wsi_device.supports_modifiers = true;
++#endif
+    physical_device->wsi_device.can_present_on_device =
+       tu_wsi_can_present_on_device;
+ 
+diff --git a/src/freedreno/vulkan/tu_wsi.h b/src/freedreno/vulkan/tu_wsi.h
+index db9de56..91f12ab 100644
+--- a/src/freedreno/vulkan/tu_wsi.h
++++ b/src/freedreno/vulkan/tu_wsi.h
+@@ -15,7 +15,8 @@
+ #if defined(VK_USE_PLATFORM_WAYLAND_KHR) || \
+     defined(VK_USE_PLATFORM_XCB_KHR) || \
+     defined(VK_USE_PLATFORM_XLIB_KHR) || \
+-    defined(VK_USE_PLATFORM_DISPLAY_KHR)
++    defined(VK_USE_PLATFORM_DISPLAY_KHR) || \
++    defined(VK_USE_PLATFORM_WIN32_KHR)
+ #define TU_USE_WSI_PLATFORM
+ #endif
+ 
+diff --git a/src/util/cache_ops_aarch64.c b/src/util/cache_ops_aarch64.c
+index d56ab8a..55f2ef8 100644
+--- a/src/util/cache_ops_aarch64.c
++++ b/src/util/cache_ops_aarch64.c
+@@ -29,9 +29,13 @@
+ static uint32_t
+ get_ctr_el0(void)
+ {
++#ifdef _WIN32
++   return (4u << 24) | (4u << 16) | 4u;
++#else
+    uint32_t ctr_el0;
+-   __asm("mrs\t%x0, ctr_el0" : "=r"(ctr_el0));
++   __asm("mrs	%x0, ctr_el0" : "=r"(ctr_el0));
+    return ctr_el0;
++#endif
+ }
+ 
+ static uint32_t
+diff --git a/src/util/u_atomic.h b/src/util/u_atomic.h
+index 9f79113..a322504 100644
+--- a/src/util/u_atomic.h
++++ b/src/util/u_atomic.h
+@@ -22,9 +22,9 @@
+  */
+ #if defined(__sun)
+ #define PIPE_ATOMIC_OS_SOLARIS
+-#elif defined(_MSC_VER)
++#elif defined(_MSC_VER) && !defined(USE_GCC_ATOMIC_BUILTINS)
+ #define PIPE_ATOMIC_MSVC_INTRINSIC
+-#elif defined(__GNUC__)
++#elif defined(__GNUC__) || defined(USE_GCC_ATOMIC_BUILTINS)
+ #define PIPE_ATOMIC_GCC_INTRINSIC
+ #else
+ #error "Unsupported platform"
+diff --git a/src/vulkan/runtime/radix_sort/common/util.c b/src/vulkan/runtime/radix_sort/common/util.c
+index 2ed2425..966ba28 100644
+--- a/src/vulkan/runtime/radix_sort/common/util.c
++++ b/src/vulkan/runtime/radix_sort/common/util.c
+@@ -74,7 +74,7 @@ msb_idx_u32(uint32_t n)
+ 
+   return index;
+ 
+-#elif defined(__GNUC__)
++#elif defined(__GNUC__) || defined(__clang__)
+ 
+   return __builtin_clz(n) ^ 31;
+ 
+diff --git a/src/vulkan/util/vk_entrypoints_gen.py b/src/vulkan/util/vk_entrypoints_gen.py
+index 9dbe00e..7f689f6 100644
+--- a/src/vulkan/util/vk_entrypoints_gen.py
++++ b/src/vulkan/util/vk_entrypoints_gen.py
+@@ -43,11 +43,9 @@ TEMPLATE_H = Template(COPYRIGHT + """\
+ #ifndef ${guard}
+ #define ${guard}
+ 
+-% if not tmpl_prefix:
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+-% endif
+ 
+ /* Entrypoint symbols are optional, and resolves to NULL if undefined.
+  * On Unix, this semantics is achieved through weak symbols.
+@@ -124,27 +122,32 @@ extern const struct vk_device_entrypoint_table ${tmpl_prefix}_device_entrypoints
+   % for p in device_prefixes:
+   VKAPI_ATTR ${e.return_type} VKAPI_CALL ${p}_${e.name}(${e.decl_params()}) VK_ENTRY_WEAK VK_ENTRY_HIDDEN;
+   % endfor
++  % if e.guard is not None:
++#endif // ${e.guard}
++  % endif
++% endfor
++% endif
+ 
+-  % if tmpl_prefix:
++#ifdef __cplusplus
++}
++#endif
++
++% if gen_proto and tmpl_prefix:
++% for e in device_entrypoints:
++  % if e.guard is not None:
++#ifdef ${e.guard}
++  % endif
+   template <${tmpl_param}>
+   VKAPI_ATTR ${e.return_type} VKAPI_CALL ${tmpl_prefix}_${e.name}(${e.decl_params()});
+ 
+   #define ${tmpl_prefix}_${e.name}_GENS(X) \
+   template VKAPI_ATTR ${e.return_type} VKAPI_CALL ${tmpl_prefix}_${e.name}<X>(${e.decl_params()});
+-  % endif
+-
+   % if e.guard is not None:
+ #endif // ${e.guard}
+   % endif
+ % endfor
+ % endif
+ 
+-% if not tmpl_prefix:
+-#ifdef __cplusplus
+-}
+-#endif
+-% endif
+-
+ #endif /* ${guard} */
+ """)
+ 
+@@ -210,7 +213,7 @@ const struct vk_${type}_entrypoint_table ${p}_${type}_entrypoints = {
+     .${e.name} = ${p}_${e.name},
+     % if e.guard is not None:
+ #elif defined(_MSC_VER)
+-    .${e.name} = (PFN_vkVoidFunction)vk_entrypoint_stub,
++    .${e.name} = NULL,
+ #endif // ${e.guard}
+     % endif
+   % endfor
+@@ -218,16 +221,25 @@ const struct vk_${type}_entrypoint_table ${p}_${type}_entrypoints = {
+ % endfor
+ 
+ % if entrypoints == device_entrypoints:
++<% msvc_defined_tmpls = {'CmdSetEvent2', 'CmdResetQueryPool', 'CmdPushDescriptorSetWithTemplate2KHR', 'CreateGraphicsPipelines', 'CmdCopyImage2', 'CreateSampler', 'CmdDrawMultiEXT', 'CmdDrawIndirect', 'CmdDispatchIndirect', 'CmdClearAttachments', 'CmdFillBuffer', 'CmdDrawIndexedIndirectCount', 'CmdCopyQueryPoolResults', 'CreateBufferView', 'CmdDrawIndirectByteCountEXT', 'UpdateDescriptorSetWithTemplate', 'CmdClearDepthStencilImage', 'CmdCopyBuffer2', 'CmdBeginCustomResolveEXT', 'CmdEndTransformFeedbackEXT', 'CmdDrawIndirectCount', 'CmdBindIndexBuffer2KHR', 'CmdEndConditionalRenderingEXT', 'CmdDrawIndexedIndirect', 'CmdDrawMultiIndexedEXT', 'CmdCopyBufferToImage2', 'CmdUpdateBuffer', 'UpdateDescriptorSets', 'CmdNextSubpass2', 'CmdClearColorImage', 'CmdCopyImageToBuffer2', 'CreateComputePipelines', 'CmdBeginRendering', 'CmdDispatchBase', 'CmdBlitImage2', 'CmdSetRenderingAttachmentLocationsKHR', 'EndCommandBuffer', 'CmdBeginRenderPass2', 'CmdBeginConditionalRenderingEXT', 'CmdPushDescriptorSet2KHR', 'CmdResolveImage2', 'CmdEndQueryIndexedEXT', 'CmdWriteBufferMarker2AMD', 'GetDescriptorEXT', 'CmdBindTransformFeedbackBuffersEXT', 'CmdBeginQueryIndexedEXT', 'CmdResetEvent2', 'GetQueryPoolResults', 'CmdDraw', 'CmdSetRenderingInputAttachmentIndicesKHR', 'CmdBindDescriptorSets2KHR', 'CmdWriteTimestamp2', 'CmdBeginTransformFeedbackEXT', 'DestroySampler', 'CmdDrawIndexed'} %>
+ % for v, entrypoint_v in zip(tmpl_variants, tmpl_variants_sanitized):
+ const struct vk_${type}_entrypoint_table ${tmpl_prefix}_${type}_entrypoints_${entrypoint_v} = {
+   % for e in entrypoints:
+     % if e.guard is not None:
+ #ifdef ${e.guard}
+     % endif
++    % if e.name in msvc_defined_tmpls:
++    .${e.name} = ${tmpl_prefix}_${e.name}${v},
++    % else:
++#ifdef _MSC_VER
++    .${e.name} = NULL,
++#else
+     .${e.name} = ${tmpl_prefix}_${e.name}${v},
++#endif
++    % endif
+     % if e.guard is not None:
+ #elif defined(_MSC_VER)
+-    .${e.name} = (PFN_vkVoidFunction)vk_entrypoint_stub,
++    .${e.name} = NULL,
+ #endif // ${e.guard}
+     % endif
+   % endfor

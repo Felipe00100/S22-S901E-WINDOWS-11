@@ -21,7 +21,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ---
-Note on UEFI / EDK2 / Mu-Silicium derived patches:
-Files under `patches/mu-silicium/` and `acpi/` derived from Project-Silicium
-(Mu-Silicium / Silicium-ACPI) and TianoCore EDK2 are additionally dual-licensed
-under BSD-2-Clause-Patent. See `THIRD_PARTY_NOTICES.md` for full details.
+Component License Summary:
+- All original drivers, WDDM/Turnip backend code, scripts, and documentation by
+  Felipe00100 & S22 Windows Community Project Contributors are licensed under MIT.
+- `drivers/adreno730-wddm/` includes MIT-licensed code derived from `adreno730-woa`
+  and register definitions generated from the MIT-licensed `freedreno` XML database
+  (see `drivers/adreno730-wddm/LICENSE`).
+- `patches/mesa-turnip-woa/` and `prebuilt/Adreno730-GPU/vulkan_freedreno.dll`
+  extend upstream Mesa 3D / Freedreno / Turnip (`arehnman/virtio-win-mesa`, MIT;
+  see `patches/mesa-turnip-woa/LICENSE`).
+- Files under `patches/mu-silicium/` and `acpi/` derived from Project-Silicium
+  (Mu-Silicium / Silicium-ACPI) and TianoCore EDK2 are additionally dual-licensed
+  under BSD-2-Clause-Patent. See `THIRD_PARTY_NOTICES.md` for full details.

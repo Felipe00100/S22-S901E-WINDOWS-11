@@ -1,6 +1,6 @@
 # S22 Checklist (Windows 11 ARM64 — Hardware Real SM-S901E / r0q)
 tags: #s22 #windows11 #arm64 #checklist
-Updated 2026-11-22 · Windows 11 Pro ARM64 `26300.9457` · Mu-Silicium `r0q`
+Updated 2026-11-24 · Windows 11 Pro ARM64 `26300.9457` · Mu-Silicium `r0q` · Adreno 730 WDDM 2.0 + Mesa 26.1.0 Turnip Vulkan 1.4.348
 
 > Este checklist separa rigorosamente o que foi **verificado no S22 físico (`SM-S901E`)** do que está em trazida/experimental ou ainda não portado.
 
@@ -10,7 +10,7 @@ Updated 2026-11-22 · Windows 11 Pro ARM64 `26300.9457` · Mu-Silicium `r0q`
 - [x] **Navegação UEFI sem botão Power**: contador automático de **15 s** no Boot Manager + **Vol+ & Vol− juntos = Enter imediato**
 - [x] **UEFI Charger Mode (`ChargerMode.efi`)**: leitura ao vivo do MAX77705 (I2C5 `0x36` 2 mΩ + `0x69`), carregamento 2.5A, exibindo **%**, **V/mV**, **mA**, **W** e **°C**, OLED saver e saída sem botão Power
 - [x] **Reboot 1-Click para TWRP (`scripts/Reiniciar_TWRP.cmd` + `RebootRecovery.efi`)**: escreve `\EFI\S22\reboot_twrp.flag` na ESP → `PlatformBootManager.c` configura PMK8350 `SDAM_2 0x7148` via `SPMIDxe` → warm reboot direto pro TWRP com zero escrita em UFS
-- [x] **Carregamento rápido no TWRP (`scripts/fc.sh`)**: `siop_level=100`, cores 5–7 offline e `powersave` nos cores 0–4
+- [x] **Carregamento rápido no TWRP (`scripts/fc.sh`)**: desbloqueia `VOTER_USB_100MA` (`usb_conf_test=2`), `siop_level=100`, cores 1–7 offline, backlight apagado e `powersave` no core 0
 - [x] **Boot completo até a Área de Trabalho do Windows 11 Pro ARM64 (`26300.9457` pt-BR) no UFS interno (`sda41` NTFS 4K)**:
   - `Waipio/DSDT.asl` (`UFS0._STA = 0x0F`) + correção de `UniquePartitionGUID` duplicados na GPT do `sda` mantendo `#1..#6` (EFS/modem) intactos
   - OOBE/Wi-Fi pulados nativamente via `Unattend.xml` + desligamento limpo verificado (`sda41` monta `rw` no TWRP sem `fsck.ntfs`)
@@ -25,13 +25,18 @@ Updated 2026-11-22 · Windows 11 Pro ARM64 `26300.9457` · Mu-Silicium `r0q`
   - **Bridge MSI (`s22wlanpdc.sys` v1.0.19.0 hardened)**: intercepta os MSIs no DWC `iMSI-RX` (`Bank 2`) com limite de iterações, guarda de bus-error `0xFFFFFFFF`, `D0ExitPreInterruptsDisabled`, SDDL Admin/SYSTEM via INF `[HW]` e falha explícita se Bank 2 ausente, injetando direto em `GICD_ISPENDR[2]` com 0 BSOD e 0 perdas
   - **Fix de Coerência DMA SM8450 (`scripts/patch_qcwlan8280_wc.ps1` → `qcwlan8280_wc.sys`)**: patch de 3 palavras (`0x14002d1f0`, `0x1402a8a20`, `0x1400084d4`) mudando as alocações DMA do `qcwlan8280.sys` de `MmCached` para **`MmWriteCombined` (`Normal Non-Cacheable`)** para compatibilidade com o barramento PCIe0 não-coerente do SM8450 — `WCN6855` entra em Mission Mode (`bEe=2`), cria interfaces DBS (`Wi-Fi` + `Wi-Fi 3`), conecta e navega em 5 GHz!
 
+- [x] **GPU Adreno 730 — Aceleração 3D Real por Hardware no Windows 11 ARM64 (WDDM 2.0 + Mesa 26.1.0 Turnip Vulkan 1.4.348)!** 🎉
+  - **KMD WDDM 2.0 (`drivers/adreno730-wddm/`, `adreno730_wddm.sys` v1.0.0.23, MIT)**: bring-up completo em 5 estágios no SM8450 (clocks GCC/GPUCC + collapse limpo de `GPU_GX_GDSC`, SMMU-500 `CB0`+`CB5` com `pt_pool` 2 MiB / 1 GiB VA e `MmWriteCombined`, `RSCC`+`GMU_PDC` + GMU Cortex-M3, `cmd-db @ 0x80860000` + HFI `PERF_TABLE`/`BW_TABLE`/`GX_BW_PERF_VOTE`, UBWC 4.0 completo, `a730_sqe.fw` v1.81, sincronização completa **BR+BV** idêntica ao Linux `a7xx_submit()`, timestamps reais de 19,2 MHz e sync de `CP_RB_RPTR` para wrap-around contínuo). Padrão boot-safe `StartGpu = 0`.
+  - **D3D12 UMD (`adreno730_d3d12.dll`, MIT)**: `D3D12CreateDevice(FL11_0) -> S_OK`, 20× 1 MiB GPU `CopyBufferRegion` a **`276.7 MB/s`** (`0/262144` mismatches) no Windows 11 sem modificação.
+  - **Mesa 26.1.0 Turnip Vulkan 1.4.348 (`patches/mesa-turnip-woa/`, `vulkan_freedreno.dll` ARM64, MIT)**: backend nativo WDDM 2.0 (`tu_knl_wddm.cc`), registrado globalmente via `vulkan-1.dll` + Win32 WSI (`VK_KHR_win32_surface` + `VkSwapchainKHR`), validado no S22 físico com triângulo 3D Gouraud rasterizado em **`0.15 ms`** (`0` erros de pixel) e **240 frames 3D contínuos a `355–402 FPS`** (`624×441`) ao vivo na tela do S22!
+
 ## 🔧 Em Trazida / Próximos Passos (Agora testáveis ao vivo via Wi-Fi sem TWRP!)
+- [ ] **DirectX 9/10/11/12 & OpenGL 4.6 + Aceleração de Navegadores/Desktop (`DXVK` / `Zink` / `ANGLE-Vulkan` / `dwm.exe`)** em cima do Turnip Vulkan 1.4.348 já funcional
 - [ ] **Wi-Fi 2.4 GHz TX (`PMR735A s3e.e` PA)**: habilitar o trilho 2,2 V `s3e.e` via AOSS QMP (`0x0C300000`) no Windows (`s22wlanpdc.sys`) após `qcpep8450.sys` inicializar (5 GHz já funciona 100%)
 - [ ] **Bateria % + Carregamento + Limite 50–100% (`drivers/max77705-battery/`, `ACPI\MAXM7705`)**: testar ao vivo sobre Wi-Fi e resolver `PANIC_STACK_SWITCH (0x2B)` antes de habilitar `_STA = 0x0F` em `SSDT.asl`
 - [ ] **USB-C Dinâmico / Hot-Plug / USB-PD / Modo Device (`drivers/max77705-usbc/`, `ACPI\MAXM7706`)**: testar ao vivo sobre Wi-Fi e validar múltiplos dispositivos no hub USB (mouse + teclado + tethering)
 
 ## ❌ Ainda Não Portados (Fases Futuras)
-- [ ] **GPU Adreno 730 (DirectX / WDDM)** — depende de driver Qualcomm Adreno ARM64 compatível com SM8450
 - [ ] **Áudio (Alto-falantes estéreo CS35L41 + microfones)** — depende de ADSP/Q6APM/AudioReach para Waipio
 - [ ] **Bluetooth (WCN6855 UART)**
 - [ ] **Sensores (SLPI: acelerômetro, giroscópio, bússola, luz ambiente STK33915, proximidade)**

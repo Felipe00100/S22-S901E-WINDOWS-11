@@ -1,6 +1,6 @@
 # Complete Replication Guide — Windows 11 ARM64 on Samsung Galaxy S22 5G (`SM-S901E` / `r0q`)
 
-This guide reproduces our verified **Windows 11 Pro ARM64 (`26300.9457`)** setup on a **Samsung Galaxy S22 5G (`SM-S901E`, Snapdragon 8 Gen 1 / SM8450, codename `r0q`)** with working **UFS boot, Display, Touchscreen (`fts2ba61y.sys`), USB 3.0 OTG Host, UEFI Charger Mode, 1-click TWRP Reboot, and Internal Wi-Fi 6E 5 GHz (`WCN6855` + `s22wlanpdc.sys` + `qcwlan8280_wc.sys`)**.
+This guide reproduces our verified **Windows 11 Pro ARM64 (`26300.9457`)** setup on a **Samsung Galaxy S22 5G (`SM-S901E`, Snapdragon 8 Gen 1 / SM8450, codename `r0q`)** with working **UFS boot, Display, Touchscreen (`fts2ba61y.sys`), USB 3.0 OTG Host, UEFI Charger Mode, 1-click TWRP Reboot, Internal Wi-Fi 6E 5 GHz (`WCN6855` + `s22wlanpdc.sys` + `qcwlan8280_wc.sys`), and Adreno 730 3D Hardware GPU Acceleration (`adreno730_wddm.sys` v1.0.0.23 + Mesa 26.1.0 Turnip Vulkan 1.4.348 `vulkan_freedreno.dll`)**.
 
 ---
 
@@ -33,6 +33,8 @@ You will need:
    - **Windows 11 ARM64 ISO/WIM** (tested with `26300.9457` pt-BR) via official Microsoft / UUP dump channels.
    - **Samsung `r0q` stock UEFI DXE blobs** (`Binaries/r0q/` extracted from your device's stock `AP` firmware per `Mu-Silicium` docs).
    - **Qualcomm Waipio (`SM8450`) Base SoC Drivers** (`qcabd`, `qcpmic8450`, `qcspmi8450`, `qcgpi8450`, `qcglink8450`, `qcipcrouter8450`, `qcscm`, `qcursext`, etc.) from Qualcomm/WOA driver packs.
+   - **Qualcomm Adreno 730 GPU Firmware (`a730_sqe.fw` v1.81 & `gmu_gen70000.bin`)**: Obtain from official upstream [`linux-firmware`](https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/tree/qcom) (`LICENSE.qcom`).
+   - **Microsoft Visual C++ Redistributable ARM64 (`vc_redist.arm64.exe`)** & **Khronos Vulkan Runtime (`vulkan-1.dll` ARM64)** for Mesa Turnip Vulkan 1.4.348.
    - **Qualcomm WCN6855 / QCA6490 Wi-Fi 6E Driver & Firmware** (`qcwlan8280.sys` `v1.0.3451.5100`, `qcwlan8280.inf`, `wlanfw20.mbn`, `m320.bin`, `bdwlan.*`, `regdb.bin`) from official Lenovo ThinkPad X13s / Surface Pro 9 5G (`SC8280XP`) driver packages.
 
 ---
@@ -115,7 +117,38 @@ Restart the `Qualcomm WCN685x` device (or reboot) — **Wi-Fi 6E (5 GHz)** will 
 
 ---
 
-## 6. Convenience Tools
+## 6. Adreno 730 3D GPU Acceleration (WDDM 2.0 + Mesa 26.1.0 Turnip Vulkan 1.4.348)
+
+### 6.1 Obtain Required Official Runtimes & Firmware (NOT Included in Git)
+1. Download `qcom/a730_sqe.fw` (v1.81, SHA-256 `4F8B288F340FF5B4881BED8DFEA90BB4A1B967556CA2DF6D07F4ED4E4A28D071`) and `qcom/gmu_gen70000.bin` from official upstream [`linux-firmware`](https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/tree/qcom) and copy them to `C:\Windows\System32\drivers\qcom\` on the S22.
+2. Install **Microsoft Visual C++ Redistributable for ARM64** (`vc_redist.arm64.exe`) and the **Khronos Vulkan Runtime (`vulkan-1.dll` ARM64)** on the S22.
+
+### 6.2 Build from Source (Optional — or use `prebuilt/Adreno730-GPU/`)
+- **WDDM 2.0 KMD + D3D12 UMD (Windows PC with MSVC ARM64 + WDK 10.0.26100.0)**:
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File .\drivers\adreno730-wddm\build_adreno730_gpu.ps1
+  ```
+- **Mesa 26.1.0 Turnip Vulkan 1.4.348 `vulkan_freedreno.dll` (WSL2 Ubuntu + `clang-cl`/`lld`/`meson`/`ninja`)**:
+  ```bash
+  ./patches/mesa-turnip-woa/build_turnip_arm64.sh
+  ```
+- Generate `adreno730_wddm.cat` with `inf2cat /driver:<dir> /os:10_VB_ARM64` and sign `adreno730_wddm.sys`, `adreno730_d3d12.dll`, `adreno730_wddm.cat`, and `vulkan_freedreno.dll` with your own local test certificate.
+
+### 6.3 Install & Activate on the S22 (Boot-Safe!)
+On the S22 (Administrator PowerShell):
+```powershell
+# 1. Create the root-enumerated WDDM adapter device once (using WDK devcon ARM64)
+devcon install .\prebuilt\Adreno730-GPU\adreno730_wddm.inf Root\Adreno730Wddm
+
+# 2. Install WDDM + Turnip Vulkan 1.4.348 ICD and start Adreno 730 live
+#    (keeps StartGpu=0 for future boots so Windows 11 stays 100% boot-safe!)
+powershell -ExecutionPolicy Bypass -File .\scripts\install_adreno730_gpu.ps1 -DriverDir .\prebuilt\Adreno730-GPU -EnableGpuNow
+```
+Standard Vulkan apps using `vulkan-1.dll` will now enumerate **`Turnip Adreno (TM) 730 (Vulkan 1.4.348)`** with full 3D hardware rasterization and Win32 WSI swapchain presentation!
+
+---
+
+## 7. Convenience Tools
 - **1-Click TWRP Reboot**: Copy [`scripts/Reiniciar_TWRP.cmd`](../scripts/Reiniciar_TWRP.cmd) to the Windows Desktop and run as Administrator.
-- **TWRP Fast-Charge**: Push [`scripts/fc.sh`](../scripts/fc.sh) to `/sdcard/fc.sh` in TWRP and run `sh /sdcard/fc.sh` (sets `siop_level=100`, disables big cores 5–7, sets `powersave` on cores 0–4).
+- **TWRP Fast-Charge**: Push [`scripts/fc.sh`](../scripts/fc.sh) to `/sdcard/fc.sh` in TWRP and run `sh /sdcard/fc.sh` (clears `VOTER_USB_100MA` via `usb_conf_test=2`, sets `siop_level=100`, turns off cores 1–7 + backlight, sets `powersave` on core 0).
 - **UEFI 2.5A Charger Mode**: Select `Charger Mode` in the `Mu-Silicium` Boot Manager (`Vol+`/`Vol−`, both together = Enter).
