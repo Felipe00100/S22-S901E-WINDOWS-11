@@ -198,6 +198,14 @@ uint64_t ir3_enc_cat3(ir3_cat3_op op, uint32_t dst_regid,
 uint64_t ir3_enc_cat4(ir3_cat4_op op, uint32_t dst_regid,
                       ir3_src src, uint32_t flags);
 
+/* Cat5: texture sample (non-bindless t#/s#) */
+uint64_t ir3_enc_sam(uint32_t dst_regid, uint32_t wrmask,
+                     uint32_t coord_regid, uint32_t tex_idx,
+                     uint32_t samp_idx, uint32_t flags);
+uint64_t ir3_enc_saml(uint32_t dst_regid, uint32_t wrmask,
+                      uint32_t coord_regid, uint32_t lod_regid,
+                      uint32_t tex_idx, uint32_t samp_idx, uint32_t flags);
+
 /* Cat6: global memory load/store (64-bit base in src1_regid:src1_regid+1) */
 uint64_t ir3_enc_ldg(uint32_t dst_regid, uint32_t base_regid,
                      int32_t byte_off, uint32_t comps, ir3_type type,
@@ -223,6 +231,8 @@ bool ir3_emit_cat2(ir3_asm_buf *b, ir3_cat2_op op, uint32_t dst, ir3_src s1, ir3
 bool ir3_emit_bary_f(ir3_asm_buf *b, uint32_t dst, uint32_t slot, uint32_t ij_regid, uint32_t flags);
 bool ir3_emit_cat3(ir3_asm_buf *b, ir3_cat3_op op, uint32_t dst, ir3_src s1, uint32_t s2_gpr, bool s2_neg, ir3_src s3, uint32_t flags);
 bool ir3_emit_cat4(ir3_asm_buf *b, ir3_cat4_op op, uint32_t dst, ir3_src s1, uint32_t flags);
+bool ir3_emit_sam(ir3_asm_buf *b, uint32_t dst, uint32_t wrmask, uint32_t coord, uint32_t tex_idx, uint32_t samp_idx, uint32_t flags);
+bool ir3_emit_saml(ir3_asm_buf *b, uint32_t dst, uint32_t wrmask, uint32_t coord, uint32_t lod, uint32_t tex_idx, uint32_t samp_idx, uint32_t flags);
 bool ir3_emit_ldg(ir3_asm_buf *b, uint32_t dst, uint32_t base, int32_t off, uint32_t comps, ir3_type t, uint32_t flags);
 bool ir3_emit_stg(ir3_asm_buf *b, uint32_t base, int32_t off, uint32_t val, uint32_t comps, ir3_type t, uint32_t flags);
 

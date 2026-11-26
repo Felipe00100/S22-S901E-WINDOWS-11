@@ -58,6 +58,8 @@ typedef struct adreno_dxbc_compiled {
     uint32_t            color0_regid;
     uint32_t            ij_regid;
     uint32_t            num_varying_scalars;
+    uint32_t            num_textures;
+    uint32_t            num_samplers;
     /* CS metadata */
     uint32_t            local_size[3];
     adreno_d3d12_ir3_meta cs_meta;

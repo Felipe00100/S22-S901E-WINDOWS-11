@@ -277,6 +277,41 @@ uint64_t ir3_enc_cat4(ir3_cat4_op op, uint32_t dst_regid,
     return w;
 }
 
+/* ---- Cat5: Texture Sample (non-bindless t#/s#) ------------------------- */
+
+uint64_t ir3_enc_sam(uint32_t dst_regid, uint32_t wrmask,
+                     uint32_t coord_regid, uint32_t tex_idx,
+                     uint32_t samp_idx, uint32_t flags)
+{
+    uint64_t w = (5ull << 61) | ir3_common_flags(flags);
+    w |= 1ull;                                    /* bit 0: FULL = 1 (32-bit float coords) */
+    w |= ((uint64_t)(coord_regid & 0xffu) << 1);  /* bits 8:1: SRC1 (u, v) */
+    w |= ((uint64_t)(samp_idx & 0xfu) << 21);     /* bits 24:21: SAMP */
+    w |= ((uint64_t)(tex_idx & 0x7fu) << 25);     /* bits 31:25: TEX */
+    w |= ((uint64_t)(dst_regid & 0xffu) << 32);   /* bits 39:32: DST */
+    w |= ((uint64_t)(wrmask & 0xfu) << 40);       /* bits 43:40: WRMASK */
+    w |= (1ull << 44);                            /* bits 46:44: TYPE = 001 (f32) */
+    w |= (3ull << 54);                            /* bits 58:54: 00011 (sam) */
+    return w;
+}
+
+uint64_t ir3_enc_saml(uint32_t dst_regid, uint32_t wrmask,
+                      uint32_t coord_regid, uint32_t lod_regid,
+                      uint32_t tex_idx, uint32_t samp_idx, uint32_t flags)
+{
+    uint64_t w = (5ull << 61) | ir3_common_flags(flags);
+    w |= 1ull;                                    /* bit 0: FULL = 1 */
+    w |= ((uint64_t)(coord_regid & 0xffu) << 1);  /* bits 8:1: SRC1 (u, v) */
+    w |= ((uint64_t)(lod_regid & 0xffu) << 9);    /* bits 16:9: SRC2 (lod) */
+    w |= ((uint64_t)(samp_idx & 0xfu) << 21);     /* bits 24:21: SAMP */
+    w |= ((uint64_t)(tex_idx & 0x7fu) << 25);     /* bits 31:25: TEX */
+    w |= ((uint64_t)(dst_regid & 0xffu) << 32);   /* bits 39:32: DST */
+    w |= ((uint64_t)(wrmask & 0xfu) << 40);       /* bits 43:40: WRMASK */
+    w |= (1ull << 44);                            /* bits 46:44: TYPE = 001 (f32) */
+    w |= (5ull << 54);                            /* bits 58:54: 00101 (saml) */
+    return w;
+}
+
 /* ---- Cat6: Global Load/Store (64-bit IOVA) ----------------------------- */
 
 uint64_t ir3_enc_ldg(uint32_t dst_regid, uint32_t base_regid,
@@ -424,6 +459,35 @@ bool ir3_emit_cat4(ir3_asm_buf *b, ir3_cat4_op op, uint32_t dst,
     ir3_track_reg(b, dst);
     ir3_track_src(b, s1);
     return ir3_asm_emit(b, ir3_enc_cat4(op, dst, s1, flags));
+}
+
+bool ir3_emit_sam(ir3_asm_buf *b, uint32_t dst, uint32_t wrmask,
+                  uint32_t coord, uint32_t tex_idx, uint32_t samp_idx,
+                  uint32_t flags)
+{
+    uint32_t i, n = 0;
+    for (i = 0; i < 4u; i++) {
+        if (wrmask & (1u << i))
+            ir3_track_reg(b, dst + (n++));
+    }
+    ir3_track_reg(b, coord);
+    ir3_track_reg(b, coord + 1u);
+    return ir3_asm_emit(b, ir3_enc_sam(dst, wrmask, coord, tex_idx, samp_idx, flags));
+}
+
+bool ir3_emit_saml(ir3_asm_buf *b, uint32_t dst, uint32_t wrmask,
+                   uint32_t coord, uint32_t lod, uint32_t tex_idx,
+                   uint32_t samp_idx, uint32_t flags)
+{
+    uint32_t i, n = 0;
+    for (i = 0; i < 4u; i++) {
+        if (wrmask & (1u << i))
+            ir3_track_reg(b, dst + (n++));
+    }
+    ir3_track_reg(b, coord);
+    ir3_track_reg(b, coord + 1u);
+    ir3_track_reg(b, lod);
+    return ir3_asm_emit(b, ir3_enc_saml(dst, wrmask, coord, lod, tex_idx, samp_idx, flags));
 }
 
 bool ir3_emit_ldg(ir3_asm_buf *b, uint32_t dst, uint32_t base,

@@ -62,7 +62,10 @@ enum dxbc_opcode {
     OP_OR               = 0x3c,
     OP_RET              = 0x3e,
     OP_RSQ              = 0x44,
-    OP_SQRT             = 0x4c,
+    OP_SAMPLE           = 0x45,
+    OP_SAMPLE_L         = 0x48,
+    OP_SAMPLE_B         = 0x4a,
+    OP_SQRT             = 0x4b,
     OP_SINCOS           = 0x4d,
     OP_UTOF             = 0x56,
     OP_USHR             = 0x55,
@@ -894,6 +897,53 @@ enum adreno_status adreno_dxbc_compile_tokens_to_ir3(
                 }
             }
             break;
+
+        case OP_SAMPLE:
+        case OP_SAMPLE_L:
+        case OP_SAMPLE_B: {
+            dxbc_operand s3;
+            /* sample dst, uv, t#, s# [, lod] */
+            if (decode_operand(toks, end_inst, &pcur, &d) &&
+                decode_operand(toks, end_inst, &pcur, &s0) &&
+                decode_operand(toks, end_inst, &pcur, &s1) &&
+                decode_operand(toks, end_inst, &pcur, &s2)) {
+                bool has_lod = false;
+                uint32_t tex_idx  = (s1.index[0] < ADRENO_3D_MAX_TEXTURES) ? s1.index[0] : 0u;
+                uint32_t samp_idx = (s2.index[0] < ADRENO_3D_MAX_SAMPLERS) ? s2.index[0] : 0u;
+                if ((opcode == OP_SAMPLE_L || opcode == OP_SAMPLE_B) && pcur < end_inst)
+                    has_lod = decode_operand(toks, end_inst, &pcur, &s3);
+
+                if (tex_idx + 1u > out->num_textures)
+                    out->num_textures = tex_idx + 1u;
+                if (samp_idx + 1u > out->num_samplers)
+                    out->num_samplers = samp_idx + 1u;
+
+                /* Pack UV coordinates into contiguous scratch0.xy */
+                emit_mov_lane(&ctx, IR3_REG(ctx.scratch0, 0), &s0, 0, 0);
+                emit_mov_lane(&ctx, IR3_REG(ctx.scratch0, 1), &s0, 1, 0);
+                if (has_lod && opcode == OP_SAMPLE_L) {
+                    emit_mov_lane(&ctx, IR3_REG(ctx.scratch0, 2), &s3, 0, 0);
+                    ir3_emit_nop(&ctx.a, 5, 0);
+                    ir3_emit_saml(&ctx.a, IR3_REG(ctx.scratch1, 0), 0xfu,
+                                  IR3_REG(ctx.scratch0, 0), IR3_REG(ctx.scratch0, 2),
+                                  tex_idx, samp_idx, 0);
+                } else {
+                    ir3_emit_nop(&ctx.a, 5, 0);
+                    ir3_emit_sam(&ctx.a, IR3_REG(ctx.scratch1, 0), 0xfu,
+                                 IR3_REG(ctx.scratch0, 0),
+                                 tex_idx, samp_idx, 0);
+                }
+                /* Wait for texture fetch result (SY) before swizzling into dst */
+                ir3_emit_nop(&ctx.a, 0, IR3_FLAG_SY);
+                for (lane = 0; lane < 4u; lane++) {
+                    uint32_t sw = s1.swizzle[lane & 3u];
+                    if (!(d.writemask & (1u << lane))) continue;
+                    ir3_emit_mov_gpr(&ctx.a, resolve_dst_regid(&ctx, &d, lane),
+                                     IR3_REG(ctx.scratch1, sw), IR3_TYPE_F32, 0);
+                }
+            }
+            break;
+        }
 
         case OP_STORE_RAW:
             /* store_raw u0, byte_offset, src_val */

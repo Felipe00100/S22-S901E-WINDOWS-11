@@ -58,15 +58,66 @@ typedef struct UMD_RESOURCE {
     BOOL owns_bo;
 } UMD_RESOURCE;
 
+#define UMD_DESCRIPTOR_SIZE 32u
+#define UMD_UAV_DESC_MAGIC  0x55415644u /* "UAVD" */
+#define UMD_RTV_DESC_MAGIC  0x52545644u /* "RTVD" */
+#define UMD_DSV_DESC_MAGIC  0x44535644u /* "DSVD" */
+#define UMD_SRV_DESC_MAGIC  0x53525644u /* "SRVD" */
+#define UMD_SAMP_DESC_MAGIC 0x534D5044u /* "SMPD" */
+#define UMD_CBV_DESC_MAGIC  0x43425644u /* "CBVD" */
+#define UMD_REF_TRIANGLE_MAGIC 0x54524441u /* "ADRT" */
+
+typedef struct UMD_UAV_DESC {
+    uint32_t magic;
+    uint32_t format;
+    uint64_t gpu_va;
+    uint64_t size;
+    uint64_t reserved;
+} UMD_UAV_DESC;
+
+typedef struct UMD_RTV_DESC {
+    uint32_t magic;
+    uint32_t format;
+    uint64_t gpu_va;
+    uint64_t size;
+    uint64_t resource;
+} UMD_RTV_DESC;
+
+typedef struct UMD_SRV_DESC {
+    uint32_t magic;
+    uint32_t format;
+    uint64_t gpu_va;
+    uint64_t size;
+    uint64_t resource;
+} UMD_SRV_DESC;
+
+typedef struct UMD_SAMP_DESC {
+    uint32_t magic;
+    uint32_t reserved0;
+    uint32_t dw[4];
+    uint32_t reserved1[2];
+} UMD_SAMP_DESC;
+
+typedef struct UMD_CBV_DESC {
+    uint32_t magic;
+    uint32_t reserved0;
+    uint64_t gpu_va;
+    uint64_t size;
+    uint64_t reserved1;
+} UMD_CBV_DESC;
+
 typedef struct UMD_CMDLIST {
     UMD_DEVICE *device;
     D3D12DDI_HRTCOMMANDLIST h_rt_cmdlist;
     adreno_d3d12_cmdlist cmd;
+    adreno_d3d12_resource tex_desc_bo;
+    uint32_t tex_desc_slot;
     BOOL initialized;
     BOOL closed;
     void *pso;
     void *root_signature;
     void *descriptor_heap;
+    void *sampler_heap;
     uint64_t compute_uav_va;
     uint32_t compute_constants[4];
     BOOL has_compute_uav;
@@ -82,6 +133,10 @@ typedef struct UMD_CMDLIST {
     BOOL has_ibuf;
     uint32_t gfx_constants[16];
     uint32_t gfx_const_vec4s;
+    UMD_SRV_DESC gfx_srvs[ADRENO_3D_MAX_TEXTURES];
+    uint32_t gfx_srv_mask;
+    UMD_SAMP_DESC gfx_samplers[ADRENO_3D_MAX_SAMPLERS];
+    uint32_t gfx_samp_mask;
 } UMD_CMDLIST;
 
 typedef struct UMD_POOL {
@@ -120,6 +175,13 @@ typedef struct UMD_WDDM_BRIDGE {
     volatile UINT64 *submit_fence_cpu;
     UINT64 submit_fence_val;
     uint32_t last_seqno;
+    HANDLE pending_rt_resource;
+    BOOL pending_primary;
+    uint32_t pending_w;
+    uint32_t pending_h;
+    uint32_t pending_pitch;
+    uint32_t pending_fmt;
+    BOOL pending_tex2d;
 } UMD_WDDM_BRIDGE;
 
 struct UMD_DEVICE {
@@ -136,30 +198,9 @@ struct UMD_DEVICE {
     UINT32 next_pso_id;
 };
 
-#define UMD_DESCRIPTOR_SIZE 32u
-#define UMD_UAV_DESC_MAGIC 0x55415644u /* "UAVD" */
-#define UMD_RTV_DESC_MAGIC 0x52545644u /* "RTVD" */
-#define UMD_DSV_DESC_MAGIC 0x44535644u /* "DSVD" */
-#define UMD_REF_TRIANGLE_MAGIC 0x54524441u /* "ADRT" */
-
-typedef struct UMD_UAV_DESC {
-    uint32_t magic;
-    uint32_t format;
-    uint64_t gpu_va;
-    uint64_t size;
-    uint64_t reserved;
-} UMD_UAV_DESC;
-
-typedef struct UMD_RTV_DESC {
-    uint32_t magic;
-    uint32_t format;
-    uint64_t gpu_va;
-    uint64_t size;
-    uint64_t resource;
-} UMD_RTV_DESC;
-
 typedef struct UMD_DESCRIPTOR_HEAP {
     UMD_DEVICE *device;
+    D3D12DDI_DESCRIPTOR_HEAP_TYPE type;
     UINT num_descriptors;
     UINT descriptor_size;
     adreno_d3d12_resource bo;
@@ -183,20 +224,30 @@ typedef struct UMD_SHADER {
     adreno_dxbc_compiled *compiled;
 } UMD_SHADER;
 
-#define UMD_MAX_ROOT_PARAMS 8
+#define UMD_MAX_ROOT_PARAMS 16
 
 typedef struct UMD_ROOT_PARAM {
     uint32_t type;
     uint32_t shader_register;
     uint32_t register_space;
     uint32_t num_32bit_values;
+    uint32_t table_range_type;
+    uint32_t table_base_reg;
+    uint32_t table_num_descs;
 } UMD_ROOT_PARAM;
+
+typedef struct UMD_STATIC_SAMP {
+    uint32_t shader_register;
+    uint32_t dw[4];
+} UMD_STATIC_SAMP;
 
 typedef struct UMD_ROOTSIG {
     uint32_t version;
     UINT node_mask;
     UINT num_params;
     UMD_ROOT_PARAM params[UMD_MAX_ROOT_PARAMS];
+    UINT num_static_samplers;
+    UMD_STATIC_SAMP static_samplers[ADRENO_3D_MAX_SAMPLERS];
 } UMD_ROOTSIG;
 
 typedef struct UMD_PSO {
@@ -244,6 +295,28 @@ static void umd_trace(const char *fmt, ...)
 static void umd_log(const char *message)
 {
     umd_trace("%s", message);
+}
+
+static void AdrenoArm64FlushDcache(const void *ptr, size_t bytes)
+{
+    /* Windows ARM64 traps EL0 dc cvac/civac (STATUS_ILLEGAL_INSTRUCTION).
+     * All WDDM2 allocations use Cached=0 (Write-Combined), so a full memory
+     * barrier drains the ARM64 write-combine buffers to DDR cleanly. */
+    (void)ptr;
+    (void)bytes;
+    MemoryBarrier();
+}
+
+static void umd_flush_all_resources(UMD_DEVICE *dev)
+{
+    UINT i;
+    if (!dev)
+        return;
+    for (i = 0; i < dev->resource_count; i++) {
+        UMD_RESOURCE *r = dev->resources[i];
+        if (r && r->bo.host && r->bo.size)
+            AdrenoArm64FlushDcache(r->bo.host, r->bo.size);
+    }
 }
 
 static UMD_DEVICE *umd_device(D3D12DDI_HDEVICE handle)
@@ -304,15 +377,35 @@ static uint32_t umd_resource_data_size(
         return (uint32_t)resource->Width;
     }
     if (resource->ResourceType == D3D12DDI_RT_TEXTURE2D) {
+        uint32_t bpp = 4u;
         if (resource->Width == 0 || resource->Width > 16384 ||
             resource->Height == 0 || resource->Height > 16384 ||
-            resource->DepthOrArraySize != 1 || resource->MipLevels != 1 ||
+            resource->DepthOrArraySize != 1 || resource->MipLevels > 16 ||
             resource->SampleDesc.Count != 1 ||
-            resource->Layout != D3D12DDI_TL_ROW_MAJOR ||
-            (resource->Format != DXGI_FORMAT_R8G8B8A8_UNORM &&
-             resource->Format != DXGI_FORMAT_D32_FLOAT))
+            (resource->Layout != D3D12DDI_TL_ROW_MAJOR &&
+             resource->Layout != D3D12DDI_TL_UNDEFINED))
             return 0;
-        row_pitch = (resource->Width * 4u + 255u) & ~255ull;
+        switch (resource->Format) {
+        case DXGI_FORMAT_R8G8B8A8_UNORM:
+        case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+        case DXGI_FORMAT_B8G8R8A8_UNORM:
+        case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+        case DXGI_FORMAT_B8G8R8X8_UNORM:
+        case DXGI_FORMAT_R32_FLOAT:
+        case DXGI_FORMAT_R32_UINT:
+        case DXGI_FORMAT_D32_FLOAT:
+            bpp = 4u;
+            break;
+        case DXGI_FORMAT_R16G16B16A16_FLOAT:
+            bpp = 8u;
+            break;
+        case DXGI_FORMAT_R32G32B32A32_FLOAT:
+            bpp = 16u;
+            break;
+        default:
+            return 0;
+        }
+        row_pitch = (resource->Width * (uint64_t)bpp + 255ull) & ~255ull;
         if (row_pitch * resource->Height > 256ull * 1024 * 1024)
             return 0;
         return (uint32_t)(row_pitch * resource->Height);
@@ -356,17 +449,28 @@ static enum adreno_status umd_wddm_alloc(void *ctx, uint32_t size,
     memset(&priv, 0, sizeof(priv));
     priv.magic = ADRENO_WDDM_ALLOC_PRIVATE_MAGIC;
     priv.size = aligned_size;
+    priv.width = b->pending_w;
+    priv.height = b->pending_h;
+    priv.row_pitch = b->pending_pitch;
+    priv.format = b->pending_fmt;
+    priv.texture2d = b->pending_tex2d ? 1u : 0u;
     info.pPrivateDriverData = &priv;
     info.PrivateDriverDataSize = sizeof(priv);
+    if (b->pending_primary) {
+        info.Flags = D3D12DDI_ALLOCATION_INFO_FLAGS_0022_PRIMARY;
+        info.VidPnSourceId = 0;
+    }
     alloc.pPrivateDriverData = &priv;
     alloc.PrivateDriverDataSize = sizeof(priv);
+    alloc.hResource = b->pending_rt_resource;
     alloc.NumAllocations = 1;
     alloc.pAllocationInfo = &info;
 
     hr = b->core->pfnAllocateCb(b->h_rt_device, &alloc);
-    umd_trace("umd_wddm_alloc(sz=%u) AllocateCb hr=0x%08lx h=0x%x va=0x%llx sys=%p",
-              aligned_size, (unsigned long)hr, (unsigned)info.hAllocation,
-              (unsigned long long)info.GpuVirtualAddress, info.pSystemMem);
+    umd_trace("umd_wddm_alloc(sz=%u hRT=%p pri=%d) AllocateCb hr=0x%08lx h=0x%x hKM=0x%x va=0x%llx",
+              aligned_size, b->pending_rt_resource, (int)b->pending_primary,
+              (unsigned long)hr, (unsigned)info.hAllocation, (unsigned)alloc.hKMResource,
+              (unsigned long long)info.GpuVirtualAddress);
     if (FAILED(hr) || info.hAllocation == 0)
         return ADRENO_ERR_NOMEM;
 
@@ -714,7 +818,7 @@ static HRESULT APIENTRY UmdGetCaps(D3D12DDI_HADAPTER hAdapter,
         D3D12DDI_TEXTURE_LAYOUT_CAPS_0026 tl;
         UINT copy = caps->DataSize;
         memset(&tl, 0, sizeof(tl));
-        tl.SupportsRowMajorTexture = FALSE;
+        tl.SupportsRowMajorTexture = TRUE;
         if (copy > sizeof(tl))
             copy = sizeof(tl);
         memset(caps->pData, 0, caps->DataSize);
@@ -944,13 +1048,15 @@ static HRESULT APIENTRY UmdCreateHeapAndResource(
     uint64_t heap_size = 0;
     enum adreno_status st;
 
-    umd_trace("CreateHeapAndResource(hd=%p hh=%p rd=%p hr=%p rtype=%u w=%llu hsz=%llu)",
-              (void*)heap_desc, (void*)heap, (void*)resource_desc, (void*)res,
+    umd_trace("CreateHeapAndResource(hRT=%p hflags=0x%x rtype=%u w=%llu h=%u fmt=%u hsz=%llu)",
+              hRTResource.handle,
+              heap_desc ? (unsigned)heap_desc->Flags : 0u,
               resource_desc ? (unsigned)resource_desc->ResourceType : 99u,
               resource_desc ? (unsigned long long)resource_desc->Width : 0ull,
+              resource_desc ? resource_desc->Height : 0u,
+              resource_desc ? (unsigned)resource_desc->Format : 0u,
               heap_desc ? (unsigned long long)heap_desc->ByteSize : 0ull);
 
-    (void)hRTResource;
     (void)clear_values;
     (void)protected_session;
 
@@ -979,8 +1085,28 @@ static HRESULT APIENTRY UmdCreateHeapAndResource(
             heap_size = res_size;
         if (heap_size == 0 || heap_size > 256ull * 1024 * 1024)
             return E_INVALIDARG;
+        dev->wddm.pending_rt_resource = hRTResource.handle;
+        dev->wddm.pending_primary =
+            (heap_desc->Flags & D3D12DDI_HEAP_FLAG_PRIMARY) ? TRUE : FALSE;
+        if (resource_desc && resource_desc->ResourceType == D3D12DDI_RT_TEXTURE2D) {
+            dev->wddm.pending_tex2d = TRUE;
+            dev->wddm.pending_w = (uint32_t)resource_desc->Width;
+            dev->wddm.pending_h = resource_desc->Height;
+            dev->wddm.pending_pitch =
+                (uint32_t)((resource_desc->Width * 4u + 255u) & ~255ull);
+            dev->wddm.pending_fmt = (uint32_t)resource_desc->Format;
+        } else {
+            dev->wddm.pending_tex2d = FALSE;
+            dev->wddm.pending_w = 0;
+            dev->wddm.pending_h = 0;
+            dev->wddm.pending_pitch = 0;
+            dev->wddm.pending_fmt = 0;
+        }
         st = adreno_d3d12_resource_create(&dev->gpu, (uint32_t)heap_size,
                                           &heap->bo);
+        dev->wddm.pending_rt_resource = NULL;
+        dev->wddm.pending_primary = FALSE;
+        dev->wddm.pending_tex2d = FALSE;
         if (st != ADRENO_OK)
             return E_OUTOFMEMORY;
         heap->owns_bo = TRUE;
@@ -1074,6 +1200,7 @@ static HRESULT APIENTRY UmdMapHeap(D3D12DDI_HDEVICE hDevice,
     (void)dev;
     if (!heap || !heap->owns_bo || !heap->bo.host || !ppData)
         return E_INVALIDARG;
+    AdrenoArm64FlushDcache(heap->bo.host, heap->bo.size);
     *ppData = heap->bo.host;
     return S_OK;
 }
@@ -1081,8 +1208,10 @@ static HRESULT APIENTRY UmdMapHeap(D3D12DDI_HDEVICE hDevice,
 static VOID APIENTRY UmdUnmapHeap(D3D12DDI_HDEVICE hDevice,
                                   D3D12DDI_HHEAP hHeap)
 {
+    UMD_HEAP *heap = (UMD_HEAP *)hHeap.pDrvPrivate;
     (void)hDevice;
-    (void)hHeap;
+    if (heap && heap->owns_bo && heap->bo.host)
+        AdrenoArm64FlushDcache(heap->bo.host, heap->bo.size);
 }
 
 static D3D12DDI_GPU_VIRTUAL_ADDRESS APIENTRY UmdCheckResourceVirtualAddress(
@@ -1094,6 +1223,200 @@ static D3D12DDI_GPU_VIRTUAL_ADDRESS APIENTRY UmdCheckResourceVirtualAddress(
 
     (void)dev;
     return res ? res->gpu_va : 0;
+}
+
+static D3DKMT_HANDLE APIENTRY UmdCheckResourceAllocationHandle(
+    D3D12DDI_HDEVICE hDevice, D3D10DDI_HRESOURCE hResource)
+{
+    UMD_RESOURCE *res = (UMD_RESOURCE *)hResource.pDrvPrivate;
+    D3DKMT_HANDLE h = res ? (D3DKMT_HANDLE)res->bo.handle : 0;
+    (void)hDevice;
+    umd_trace("CheckResourceAllocationHandle(hr=%p) -> 0x%x",
+              hResource.pDrvPrivate, (unsigned)h);
+    return h;
+}
+
+static UINT APIENTRY UmdGetPresentPrivateDriverDataSize(
+    D3D12DDI_HDEVICE hDevice, const D3D12DDIARG_PRESENT_0001 *args)
+{
+    (void)hDevice;
+    (void)args;
+    umd_trace("GetPresentPrivateDriverDataSize -> 0");
+    return 0;
+}
+
+static HRESULT APIENTRY UmdMakeResident(
+    D3D12DDI_HDEVICE hDevice, D3D12DDIARG_MAKERESIDENT_0001 *args)
+{
+    UMD_DEVICE *dev = umd_device(hDevice);
+    (void)dev;
+    if (args) {
+        args->WaitMask = 0;
+        if (args->pPagingFenceValue && args->NumAdapters > 0)
+            args->pPagingFenceValue[0] = 0;
+    }
+    return S_OK;
+}
+
+static HRESULT APIENTRY UmdEvict(
+    D3D12DDI_HDEVICE hDevice, const D3D12DDIARG_EVICT *args)
+{
+    (void)hDevice;
+    (void)args;
+    return S_OK;
+}
+
+static D3D12DDI_HEAP_AND_RESOURCE_SIZES APIENTRY UmdCalcPrivateOpenedHeapAndResourceSizes(
+    D3D12DDI_HDEVICE hDevice,
+    const D3D12DDIARG_OPENHEAP_0003 *args,
+    D3D12DDI_HPROTECTEDRESOURCESESSION_0030 protected_session)
+{
+    D3D12DDI_HEAP_AND_RESOURCE_SIZES sizes;
+    (void)hDevice; (void)args; (void)protected_session;
+    sizes.Heap = sizeof(UMD_HEAP);
+    sizes.Resource = sizeof(UMD_RESOURCE);
+    return sizes;
+}
+
+static HRESULT APIENTRY UmdOpenHeapAndResource(
+    D3D12DDI_HDEVICE hDevice,
+    const D3D12DDIARG_OPENHEAP_0003 *args,
+    D3D12DDI_HHEAP hHeap,
+    D3D12DDI_HRTRESOURCE hRTResource,
+    D3D12DDI_HPROTECTEDRESOURCESESSION_0030 protected_session,
+    D3D12DDI_HRESOURCE hResource)
+{
+    UMD_DEVICE *dev = umd_device(hDevice);
+    UMD_HEAP *heap = (UMD_HEAP *)hHeap.pDrvPrivate;
+    UMD_RESOURCE *res = umd_resource(hResource);
+    UMD_WDDM_BRIDGE *b;
+    D3DKMT_HANDLE h_alloc = 0;
+    uint32_t sz = 65536, w = 0, h = 0, pitch = 0, fmt = 0;
+    BOOL tex2d = FALSE;
+    uint64_t gpu_va = 0;
+    void *cpu_ptr = NULL;
+    HRESULT hr;
+
+    (void)hRTResource;
+    (void)protected_session;
+    umd_trace("OpenHeapAndResource(nAlloc=%u hKM=0x%x privSz=%u)",
+              args ? args->NumAllocations : 0u,
+              args ? (unsigned)args->hKMResource.handle : 0u,
+              args ? args->PrivateDriverDataSize : 0u);
+
+    if (!dev || !dev->gpu_ready || !args || args->NumAllocations == 0 ||
+        !args->pOpenAllocationInfo)
+        return E_INVALIDARG;
+
+    h_alloc = args->pOpenAllocationInfo[0].hAllocation;
+    if (args->pOpenAllocationInfo[0].pPrivateDriverData &&
+        args->pOpenAllocationInfo[0].PrivateDriverDataSize >= sizeof(adreno_wddm_alloc_private)) {
+        const adreno_wddm_alloc_private *priv =
+            (const adreno_wddm_alloc_private *)args->pOpenAllocationInfo[0].pPrivateDriverData;
+        if (priv->magic == ADRENO_WDDM_ALLOC_PRIVATE_MAGIC && priv->size) {
+            sz = priv->size;
+            w = priv->width;
+            h = priv->height;
+            pitch = priv->row_pitch;
+            fmt = priv->format;
+            tex2d = priv->texture2d ? TRUE : FALSE;
+        }
+    } else if (args->pPrivateDriverData &&
+               args->PrivateDriverDataSize >= sizeof(adreno_wddm_alloc_private)) {
+        const adreno_wddm_alloc_private *priv =
+            (const adreno_wddm_alloc_private *)args->pPrivateDriverData;
+        if (priv->magic == ADRENO_WDDM_ALLOC_PRIVATE_MAGIC && priv->size) {
+            sz = priv->size;
+            w = priv->width;
+            h = priv->height;
+            pitch = priv->row_pitch;
+            fmt = priv->format;
+            tex2d = priv->texture2d ? TRUE : FALSE;
+        }
+    }
+    sz = (sz + 4095u) & ~4095u;
+
+    b = &dev->wddm;
+    if (b->h_paging_queue && b->kt && b->kt->pfnMakeResidentCb &&
+        b->kt->pfnMapGpuVirtualAddressCb && b->kt->pfnLock2Cb && h_alloc) {
+        D3DDDI_MAKERESIDENT mr;
+        D3DDDI_MAPGPUVIRTUALADDRESS mva;
+        D3DDDICB_LOCK2 lock2;
+        UINT64 target_fence = 0;
+
+        memset(&mr, 0, sizeof(mr));
+        mr.hPagingQueue = b->h_paging_queue;
+        mr.NumAllocations = 1;
+        mr.AllocationList = &h_alloc;
+        hr = b->kt->pfnMakeResidentCb(b->h_device, &mr);
+        if (FAILED(hr) && hr != E_PENDING)
+            return hr;
+        if (mr.PagingFenceValue > target_fence)
+            target_fence = mr.PagingFenceValue;
+
+        memset(&mva, 0, sizeof(mva));
+        mva.hPagingQueue = b->h_paging_queue;
+        mva.MinimumAddress = 0x20000000ull;
+        mva.MaximumAddress = 0x50000000ull;
+        mva.hAllocation = h_alloc;
+        mva.OffsetInPages = 0;
+        mva.SizeInPages = sz >> 12;
+        mva.Protection.Write = 1;
+        hr = b->kt->pfnMapGpuVirtualAddressCb(b->h_device, &mva);
+        if ((FAILED(hr) && hr != E_PENDING) || mva.VirtualAddress == 0)
+            return FAILED(hr) ? hr : E_FAIL;
+        if (mva.PagingFenceValue > target_fence)
+            target_fence = mva.PagingFenceValue;
+
+        if (b->paging_fence_cpu && target_fence > 0) {
+            uint64_t t0 = GetTickCount64();
+            while (*b->paging_fence_cpu < target_fence) {
+                if (GetTickCount64() - t0 > 2000)
+                    break;
+                Sleep(0);
+            }
+        }
+
+        memset(&lock2, 0, sizeof(lock2));
+        lock2.hAllocation = h_alloc;
+        hr = b->kt->pfnLock2Cb(b->h_device, &lock2);
+        if (SUCCEEDED(hr) && lock2.pData)
+            cpu_ptr = lock2.pData;
+        gpu_va = mva.VirtualAddress;
+    }
+
+    if (heap) {
+        memset(heap, 0, sizeof(*heap));
+        heap->device = dev;
+        heap->bo.device = &dev->gpu;
+        heap->bo.handle = (uint32_t)h_alloc;
+        heap->bo.size = sz;
+        heap->bo.iova = gpu_va;
+        heap->bo.host = cpu_ptr;
+        heap->owns_bo = FALSE;
+    }
+    if (res) {
+        memset(res, 0, sizeof(*res));
+        res->device = dev;
+        res->bo.device = &dev->gpu;
+        res->bo.handle = (uint32_t)h_alloc;
+        res->bo.size = sz;
+        res->bo.iova = gpu_va;
+        res->bo.host = cpu_ptr;
+        res->owns_bo = FALSE;
+        res->bo_offset = 0;
+        res->size = sz;
+        res->gpu_va = gpu_va;
+        res->texture2d = tex2d;
+        res->width = w;
+        res->height = h;
+        res->row_pitch = pitch;
+        res->format = (DXGI_FORMAT)fmt;
+        (void)umd_device_add_resource(dev, res);
+    }
+    umd_trace("  OpenHeapAndResource OK: h=0x%x va=0x%llx sz=%u %ux%u",
+              (unsigned)h_alloc, (unsigned long long)gpu_va, sz, w, h);
+    return S_OK;
 }
 
 /* ---- Descriptor heaps and UAV views ------------------------------------- */
@@ -1131,6 +1454,7 @@ static HRESULT APIENTRY UmdCreateDescriptorHeap(
         return E_INVALIDARG;
     memset(heap, 0, sizeof(*heap));
     heap->device = dev;
+    heap->type = args->Type;
     heap->num_descriptors = args->NumDescriptors;
     heap->descriptor_size = UMD_DESCRIPTOR_SIZE;
     bytes = (uint64_t)args->NumDescriptors * UMD_DESCRIPTOR_SIZE;
@@ -1289,6 +1613,140 @@ static VOID APIENTRY UmdCreateDepthStencilView(
     desc->resource = (uint64_t)(uintptr_t)res;
 }
 
+static uint32_t umd_d3d_addr_to_a730(D3D12DDI_TEXTURE_ADDRESS_MODE m)
+{
+    switch (m) {
+    case D3D12DDI_TEXTURE_ADDRESS_MODE_WRAP:   return ADRENO_TEX_WRAP_REPEAT;
+    case D3D12DDI_TEXTURE_ADDRESS_MODE_MIRROR: return ADRENO_TEX_WRAP_MIRROR_REPEAT;
+    case D3D12DDI_TEXTURE_ADDRESS_MODE_BORDER: return ADRENO_TEX_WRAP_CLAMP_BORDER;
+    case D3D12DDI_TEXTURE_ADDRESS_MODE_MIRRORONCE: return ADRENO_TEX_WRAP_MIRROR_CLAMP;
+    case D3D12DDI_TEXTURE_ADDRESS_MODE_CLAMP:
+    default:                                   return ADRENO_TEX_WRAP_CLAMP_TO_EDGE;
+    }
+}
+
+static void umd_encode_d3d_sampler(D3D12DDI_FILTER filter,
+                                   D3D12DDI_TEXTURE_ADDRESS_MODE addr_u,
+                                   D3D12DDI_TEXTURE_ADDRESS_MODE addr_v,
+                                   D3D12DDI_TEXTURE_ADDRESS_MODE addr_w,
+                                   uint32_t out_dw[4])
+{
+    adreno_a730_samp_desc s;
+    memset(&s, 0, sizeof(s));
+    s.mip_linear = (((uint32_t)filter & 0x03u) != 0u);
+    s.mag_linear = ((((uint32_t)filter >> 2) & 0x03u) != 0u);
+    s.min_linear = ((((uint32_t)filter >> 4) & 0x03u) != 0u);
+    s.wrap_u = umd_d3d_addr_to_a730(addr_u);
+    s.wrap_v = umd_d3d_addr_to_a730(addr_v);
+    s.wrap_w = umd_d3d_addr_to_a730(addr_w);
+    adreno_a730_encode_tex_samp(&s, out_dw);
+}
+
+static VOID APIENTRY UmdCreateShaderResourceView(
+    D3D12DDI_HDEVICE hDevice,
+    const D3D12DDIARG_CREATE_SHADER_RESOURCE_VIEW_0002 *args,
+    D3D12DDI_CPU_DESCRIPTOR_HANDLE dest)
+{
+    UMD_RESOURCE *res;
+    UMD_SRV_DESC *desc;
+    (void)hDevice;
+    if (!args || dest.ptr == 0)
+        return;
+    res = umd_resource(args->hDrvResource);
+    if (!res)
+        return;
+    desc = (UMD_SRV_DESC *)(uintptr_t)dest.ptr;
+    desc->magic    = UMD_SRV_DESC_MAGIC;
+    desc->format   = args->Format ? (uint32_t)args->Format : (uint32_t)res->format;
+    desc->gpu_va   = res->gpu_va;
+    desc->size     = res->size;
+    desc->resource = (uint64_t)(uintptr_t)res;
+}
+
+static VOID APIENTRY UmdCreateConstantBufferView(
+    D3D12DDI_HDEVICE hDevice,
+    const D3D12DDI_CONSTANT_BUFFER_VIEW_DESC *args,
+    D3D12DDI_CPU_DESCRIPTOR_HANDLE dest)
+{
+    UMD_CBV_DESC *desc;
+    (void)hDevice;
+    if (!args || dest.ptr == 0)
+        return;
+    desc = (UMD_CBV_DESC *)(uintptr_t)dest.ptr;
+    desc->magic     = UMD_CBV_DESC_MAGIC;
+    desc->reserved0 = 0;
+    desc->gpu_va    = args->BufferLocation;
+    desc->size      = args->SizeInBytes;
+    desc->reserved1 = 0;
+}
+
+static VOID APIENTRY UmdCreateSampler(
+    D3D12DDI_HDEVICE hDevice,
+    const D3D12DDIARG_CREATE_SAMPLER *args,
+    D3D12DDI_CPU_DESCRIPTOR_HANDLE dest)
+{
+    UMD_SAMP_DESC *desc;
+    (void)hDevice;
+    if (!args || !args->pSamplerDesc || dest.ptr == 0)
+        return;
+    desc = (UMD_SAMP_DESC *)(uintptr_t)dest.ptr;
+    memset(desc, 0, sizeof(*desc));
+    desc->magic = UMD_SAMP_DESC_MAGIC;
+    umd_encode_d3d_sampler(args->pSamplerDesc->Filter,
+                           args->pSamplerDesc->AddressU,
+                           args->pSamplerDesc->AddressV,
+                           args->pSamplerDesc->AddressW,
+                           desc->dw);
+}
+
+static VOID APIENTRY UmdCopyDescriptorsSimple(
+    D3D12DDI_HDEVICE hDevice, UINT num_descriptors,
+    D3D12DDI_CPU_DESCRIPTOR_HANDLE dst_start,
+    D3D12DDI_CPU_DESCRIPTOR_HANDLE src_start,
+    D3D12DDI_DESCRIPTOR_HEAP_TYPE heap_type)
+{
+    (void)hDevice;
+    (void)heap_type;
+    if (num_descriptors == 0 || !dst_start.ptr || !src_start.ptr)
+        return;
+    memcpy((void *)(uintptr_t)dst_start.ptr,
+           (const void *)(uintptr_t)src_start.ptr,
+           (size_t)num_descriptors * UMD_DESCRIPTOR_SIZE);
+}
+
+static VOID APIENTRY UmdCopyDescriptors(
+    D3D12DDI_HDEVICE hDevice,
+    UINT num_dst_ranges,
+    const D3D12DDI_CPU_DESCRIPTOR_HANDLE *dst_starts,
+    const UINT *dst_sizes,
+    UINT num_src_ranges,
+    const D3D12DDI_CPU_DESCRIPTOR_HANDLE *src_starts,
+    const UINT *src_sizes,
+    D3D12DDI_DESCRIPTOR_HEAP_TYPE heap_type)
+{
+    UINT di = 0, doff = 0, si = 0, soff = 0;
+    (void)hDevice;
+    (void)heap_type;
+    if (!dst_starts || !src_starts)
+        return;
+    while (di < num_dst_ranges && si < num_src_ranges) {
+        UINT dlen = dst_sizes ? dst_sizes[di] : 1u;
+        UINT slen = src_sizes ? src_sizes[si] : 1u;
+        UINT drem = (dlen > doff) ? (dlen - doff) : 0u;
+        UINT srem = (slen > soff) ? (slen - soff) : 0u;
+        UINT cnt  = (drem < srem) ? drem : srem;
+        if (cnt > 0 && dst_starts[di].ptr && src_starts[si].ptr) {
+            memcpy((uint8_t *)(uintptr_t)dst_starts[di].ptr + (size_t)doff * UMD_DESCRIPTOR_SIZE,
+                   (const uint8_t *)(uintptr_t)src_starts[si].ptr + (size_t)soff * UMD_DESCRIPTOR_SIZE,
+                   (size_t)cnt * UMD_DESCRIPTOR_SIZE);
+        }
+        doff += cnt;
+        soff += cnt;
+        if (doff >= dlen) { di++; doff = 0; }
+        if (soff >= slen) { si++; soff = 0; }
+    }
+}
+
 /* ---- Format and pipeline/shader scaffold -------------------------------- */
 
 static VOID APIENTRY UmdCheckFormatSupport(D3D12DDI_HDEVICE hDevice,
@@ -1303,20 +1761,27 @@ static VOID APIENTRY UmdCheckFormatSupport(D3D12DDI_HDEVICE hDevice,
     case DXGI_FORMAT_R32_FLOAT:
         *support = D3D12DDI_FORMAT_SUPPORT_BUFFER |
                    D3D12DDI_FORMAT_SUPPORT_UAV_READS |
-                   D3D12DDI_FORMAT_SUPPORT_UAV_WRITES;
+                   D3D12DDI_FORMAT_SUPPORT_UAV_WRITES |
+                   D3D12DDI_FORMAT_SUPPORT_SHADER_SAMPLE;
         break;
     case DXGI_FORMAT_R8G8B8A8_UNORM:
     case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+    case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+    case DXGI_FORMAT_B8G8R8X8_UNORM:
         *support = D3D12DDI_FORMAT_SUPPORT_BUFFER |
                    D3D12DDI_FORMAT_SUPPORT_SHADER_SAMPLE |
                    D3D12DDI_FORMAT_SUPPORT_RENDERTARGET |
-                   D3D12DDI_FORMAT_SUPPORT_BLENDABLE;
+                   D3D12DDI_FORMAT_SUPPORT_BLENDABLE |
+                   D3D12DDI_FORMAT_SUPPORT_MULTIPLANE_OVERLAY |
+                   D3D12DDI_FORMAT_SUPPORT_DISPLAY;
         break;
     case DXGI_FORMAT_R16G16B16A16_FLOAT:
     case DXGI_FORMAT_R32G32B32A32_FLOAT:
         *support = D3D12DDI_FORMAT_SUPPORT_BUFFER |
                    D3D12DDI_FORMAT_SUPPORT_SHADER_SAMPLE |
-                   D3D12DDI_FORMAT_SUPPORT_RENDERTARGET;
+                   D3D12DDI_FORMAT_SUPPORT_RENDERTARGET |
+                   D3D12DDI_FORMAT_SUPPORT_DISPLAY;
         break;
     case DXGI_FORMAT_D32_FLOAT:
         *support = D3D12DDI_FORMAT_SUPPORT_BUFFER |
@@ -1618,8 +2083,30 @@ static HRESULT APIENTRY UmdCreateRootSignature(
             root->params[i].register_space = p->Descriptor.RegisterSpace;
             break;
         case D3D12DDI_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE:
+            if (p->DescriptorTable.NumDescriptorRanges > 0 &&
+                p->DescriptorTable.pDescriptorRanges) {
+                const D3D12DDI_DESCRIPTOR_RANGE_0013 *r0 =
+                    &p->DescriptorTable.pDescriptorRanges[0];
+                root->params[i].table_range_type = (uint32_t)r0->RangeType;
+                root->params[i].table_base_reg   = r0->BaseShaderRegister;
+                root->params[i].table_num_descs  =
+                    (r0->NumDescriptors == 0xffffffffu || r0->NumDescriptors > ADRENO_3D_MAX_TEXTURES)
+                        ? ADRENO_3D_MAX_TEXTURES : r0->NumDescriptors;
+            }
+            break;
         default:
             break;
+        }
+    }
+    if (desc->NumStaticSamplers > 0 && desc->pStaticSamplers) {
+        UINT ns = desc->NumStaticSamplers;
+        if (ns > ADRENO_3D_MAX_SAMPLERS) ns = ADRENO_3D_MAX_SAMPLERS;
+        root->num_static_samplers = ns;
+        for (i = 0; i < ns; i++) {
+            const D3D12DDI_STATIC_SAMPLER *ss = &desc->pStaticSamplers[i];
+            root->static_samplers[i].shader_register = ss->ShaderRegister;
+            umd_encode_d3d_sampler(ss->Filter, ss->AddressU, ss->AddressV,
+                                   ss->AddressW, root->static_samplers[i].dw);
         }
     }
     return S_OK;
@@ -1688,6 +2175,8 @@ static HRESULT APIENTRY UmdCreatePipelineState(
                            vs->compiled->code_bytes);
                     memcpy(pso->ps_bo.host, ps->compiled->insns,
                            ps->compiled->code_bytes);
+                    AdrenoArm64FlushDcache(pso->vs_bo.host, vs->compiled->code_bytes);
+                    AdrenoArm64FlushDcache(pso->ps_bo.host, ps->compiled->code_bytes);
                     pso->has_hw_gfx = TRUE;
                     umd_trace("CreatePipelineState HW-GFX OK: vs_iova=0x%llx ps_iova=0x%llx",
                               (unsigned long long)pso->vs_bo.iova,
@@ -1725,6 +2214,7 @@ static HRESULT APIENTRY UmdCreatePipelineState(
             return E_FAIL;
         }
         memcpy(pso->shader_bo.host, c->insns, c->code_bytes);
+        AdrenoArm64FlushDcache(pso->shader_bo.host, c->code_bytes);
         pso->has_ir3 = TRUE;
         pso->meta = c->cs_meta;
         umd_trace("CreatePipelineState HW-CS (DXBC->IR3) OK: iova=0x%llx units=%u",
@@ -1918,6 +2408,100 @@ static VOID APIENTRY UmdSetGraphicsRootConstantBufferView(
     }
 }
 
+static VOID APIENTRY UmdSetGraphicsRootShaderResourceView(
+    D3D12DDI_HCOMMANDLIST hCommandList, UINT root_param,
+    D3D12DDI_GPU_VIRTUAL_ADDRESS buf_va)
+{
+    UMD_CMDLIST *list = (UMD_CMDLIST *)hCommandList.pDrvPrivate;
+    UMD_ROOTSIG *root;
+    UMD_RESOURCE *res;
+    UINT slot = 0;
+
+    if (!list || !list->device || !buf_va)
+        return;
+    root = (UMD_ROOTSIG *)list->root_signature;
+    if (root && root_param < root->num_params)
+        slot = root->params[root_param].shader_register;
+    if (slot >= ADRENO_3D_MAX_TEXTURES)
+        return;
+    res = umd_find_va(list->device, buf_va, 4u);
+    if (!res)
+        return;
+    list->gfx_srvs[slot].magic    = UMD_SRV_DESC_MAGIC;
+    list->gfx_srvs[slot].format   = (uint32_t)res->format;
+    list->gfx_srvs[slot].gpu_va   = buf_va;
+    list->gfx_srvs[slot].size     = res->size;
+    list->gfx_srvs[slot].resource = (uint64_t)(uintptr_t)res;
+    list->gfx_srv_mask |= (1u << slot);
+}
+
+static VOID APIENTRY UmdSetGraphicsRootDescriptorTable(
+    D3D12DDI_HCOMMANDLIST hCommandList, UINT root_param,
+    D3D12DDI_GPU_DESCRIPTOR_HANDLE base_desc)
+{
+    UMD_CMDLIST *list = (UMD_CMDLIST *)hCommandList.pDrvPrivate;
+    UMD_ROOTSIG *root;
+    UMD_DESCRIPTOR_HEAP *heap = NULL;
+    UINT base_reg = 0, max_cnt = ADRENO_3D_MAX_TEXTURES, k;
+    uint64_t offset;
+
+    if (!list || !base_desc.ptr)
+        return;
+    root = (UMD_ROOTSIG *)list->root_signature;
+    if (root && root_param < root->num_params &&
+        root->params[root_param].type == D3D12DDI_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE) {
+        base_reg = root->params[root_param].table_base_reg;
+        if (root->params[root_param].table_num_descs > 0)
+            max_cnt = root->params[root_param].table_num_descs;
+    }
+
+    /* Match GPU descriptor handle against bound CBV/SRV/UAV or SAMPLER heap */
+    if (list->descriptor_heap) {
+        UMD_DESCRIPTOR_HEAP *h = (UMD_DESCRIPTOR_HEAP *)list->descriptor_heap;
+        if (h->initialized && h->bo.host &&
+            base_desc.ptr >= h->bo.iova &&
+            base_desc.ptr < h->bo.iova + h->bo.size)
+            heap = h;
+    }
+    if (!heap && list->sampler_heap) {
+        UMD_DESCRIPTOR_HEAP *h = (UMD_DESCRIPTOR_HEAP *)list->sampler_heap;
+        if (h->initialized && h->bo.host &&
+            base_desc.ptr >= h->bo.iova &&
+            base_desc.ptr < h->bo.iova + h->bo.size)
+            heap = h;
+    }
+    if (!heap)
+        return;
+
+    offset = base_desc.ptr - heap->bo.iova;
+    for (k = 0; k < max_cnt; k++) {
+        uint64_t d_off = offset + (uint64_t)k * UMD_DESCRIPTOR_SIZE;
+        uint32_t magic;
+        const uint8_t *p;
+        if (d_off + UMD_DESCRIPTOR_SIZE > heap->bo.size)
+            break;
+        p = (const uint8_t *)heap->bo.host + (size_t)d_off;
+        memcpy(&magic, p, 4);
+        if (magic == UMD_SRV_DESC_MAGIC) {
+            UINT slot = base_reg + k;
+            if (slot < ADRENO_3D_MAX_TEXTURES) {
+                memcpy(&list->gfx_srvs[slot], p, sizeof(UMD_SRV_DESC));
+                list->gfx_srv_mask |= (1u << slot);
+            }
+        } else if (magic == UMD_SAMP_DESC_MAGIC) {
+            UINT slot = base_reg + k;
+            if (slot < ADRENO_3D_MAX_SAMPLERS) {
+                memcpy(&list->gfx_samplers[slot], p, sizeof(UMD_SAMP_DESC));
+                list->gfx_samp_mask |= (1u << slot);
+            }
+        } else if (magic == UMD_CBV_DESC_MAGIC) {
+            const UMD_CBV_DESC *cbv = (const UMD_CBV_DESC *)p;
+            if (cbv->gpu_va)
+                UmdSetGraphicsRootConstantBufferView(hCommandList, root_param, cbv->gpu_va);
+        }
+    }
+}
+
 static uint32_t umd_dxgi_to_a730_vfmt(DXGI_FORMAT fmt, uint32_t *out_mask, bool *out_float)
 {
     *out_float = true;
@@ -2078,14 +2662,87 @@ static void umd_emit_hw_draw(UMD_CMDLIST *list, UINT vertex_count,
         draw.ps.const_vec4s = list->gfx_const_vec4s;
     }
 
+    /* Pack bound PS textures (A6XX_TEX_MEMOBJ) & samplers (A6XX_TEX_SAMP) into tex_desc_bo */
+    if (ps_c->num_textures > 0u && list->tex_desc_bo.host) {
+        uint32_t nt = ps_c->num_textures;
+        uint32_t ns = ps_c->num_samplers ? ps_c->num_samplers : 1u;
+        uint32_t slot = list->tex_desc_slot & 15u; /* 16 slots x 1024B = 16KB */
+        uint32_t slot_off = slot * 1024u;
+        uint8_t *base_host = (uint8_t *)list->tex_desc_bo.host + slot_off;
+        adreno_iova_t base_iova = list->tex_desc_bo.iova + slot_off;
+        uint32_t *tex_mem  = (uint32_t *)base_host;           /* 0..511: 8 x 64B */
+        uint32_t *samp_mem = (uint32_t *)(base_host + 512u);  /* 512..639: 8 x 16B */
+        UMD_ROOTSIG *rs = (UMD_ROOTSIG *)list->root_signature;
+
+        if (nt > ADRENO_3D_MAX_TEXTURES) nt = ADRENO_3D_MAX_TEXTURES;
+        if (ns > ADRENO_3D_MAX_SAMPLERS) ns = ADRENO_3D_MAX_SAMPLERS;
+        memset(base_host, 0, 1024u);
+
+        for (i = 0; i < nt; i++) {
+            if ((list->gfx_srv_mask & (1u << i)) &&
+                list->gfx_srvs[i].magic == UMD_SRV_DESC_MAGIC) {
+                UMD_RESOURCE *tres = (UMD_RESOURCE *)(uintptr_t)list->gfx_srvs[i].resource;
+                if (tres && tres->texture2d) {
+                    adreno_a730_tex_desc td;
+                    memset(&td, 0, sizeof(td));
+                    td.iova   = list->gfx_srvs[i].gpu_va;
+                    td.width  = tres->width;
+                    td.height = tres->height;
+                    td.pitch  = tres->row_pitch;
+                    umd_dxgi_to_a730_rtv((DXGI_FORMAT)list->gfx_srvs[i].format,
+                                         &td.fmt, &td.swap);
+                    td.srgb = ((DXGI_FORMAT)list->gfx_srvs[i].format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB ||
+                               (DXGI_FORMAT)list->gfx_srvs[i].format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB);
+                    adreno_a730_encode_tex_memobj(&td, &tex_mem[i * 16u]);
+                }
+            }
+        }
+        for (i = 0; i < ns; i++) {
+            if ((list->gfx_samp_mask & (1u << i)) &&
+                list->gfx_samplers[i].magic == UMD_SAMP_DESC_MAGIC) {
+                memcpy(&samp_mem[i * 4u], list->gfx_samplers[i].dw, 16u);
+            } else {
+                bool found_static = false;
+                if (rs) {
+                    UINT k;
+                    for (k = 0; k < rs->num_static_samplers; k++) {
+                        if (rs->static_samplers[k].shader_register == i) {
+                            memcpy(&samp_mem[i * 4u], rs->static_samplers[k].dw, 16u);
+                            found_static = true;
+                            break;
+                        }
+                    }
+                }
+                if (!found_static) {
+                    adreno_a730_samp_desc def_s;
+                    memset(&def_s, 0, sizeof(def_s));
+                    def_s.mag_linear = true;
+                    def_s.min_linear = true;
+                    def_s.wrap_u = ADRENO_TEX_WRAP_CLAMP_TO_EDGE;
+                    def_s.wrap_v = ADRENO_TEX_WRAP_CLAMP_TO_EDGE;
+                    def_s.wrap_w = ADRENO_TEX_WRAP_CLAMP_TO_EDGE;
+                    adreno_a730_encode_tex_samp(&def_s, &samp_mem[i * 4u]);
+                }
+            }
+        }
+
+        draw.ps.num_textures    = nt;
+        draw.ps.tex_memobj_iova = base_iova;
+        draw.ps.num_samplers    = ns;
+        draw.ps.tex_samp_iova   = base_iova + 512ull;
+        AdrenoArm64FlushDcache(base_host, 1024u);
+        list->tex_desc_slot++;
+    }
+
     if (adreno_d3d12_cmdlist_reserve(&list->cmd, 1024u) != ADRENO_OK)
         return;
     if (!adreno_a730_emit_draw_3d(&list->cmd.pm4, &draw))
         umd_log("adreno730_d3d12: HW 3D draw encode failed\n");
     else
-        umd_trace("Draw3D HW OK: vtx=%u inst=%u idx=%d rtv=0x%llx (%ux%u)",
+        umd_trace("Draw3D HW OK: vtx=%u inst=%u idx=%d rtv=0x%llx (%ux%u) tex=%u samp=%u",
                   vertex_count, instance_count, (int)indexed,
-                  (unsigned long long)draw.rtv.iova, res->width, res->height);
+                  (unsigned long long)draw.rtv.iova, res->width, res->height,
+                  draw.ps.num_textures, draw.ps.num_samplers);
 }
 
 static VOID APIENTRY UmdDrawInstanced(
@@ -2185,14 +2842,22 @@ static VOID APIENTRY UmdSetDescriptorHeaps(
     D3D12DDI_HDESCRIPTORHEAP *pDescriptorHeaps)
 {
     UMD_CMDLIST *list = (UMD_CMDLIST *)hCommandList.pDrvPrivate;
+    UINT i;
 
     if (!list)
         return;
-    if (NumDescriptorHeaps == 0 || !pDescriptorHeaps) {
-        list->descriptor_heap = NULL;
+    list->descriptor_heap = NULL;
+    list->sampler_heap = NULL;
+    if (NumDescriptorHeaps == 0 || !pDescriptorHeaps)
         return;
+    for (i = 0; i < NumDescriptorHeaps; i++) {
+        UMD_DESCRIPTOR_HEAP *h = (UMD_DESCRIPTOR_HEAP *)pDescriptorHeaps[i].pDrvPrivate;
+        if (!h) continue;
+        if (h->type == D3D12DDI_DESCRIPTOR_HEAP_TYPE_SAMPLER)
+            list->sampler_heap = h;
+        else
+            list->descriptor_heap = h;
     }
-    list->descriptor_heap = pDescriptorHeaps[0].pDrvPrivate;
 }
 
 static VOID APIENTRY UmdSetComputeRootDescriptorTable(
@@ -2402,6 +3067,7 @@ static HRESULT APIENTRY UmdCreateCommandList(
     if (adreno_d3d12_cmdlist_create(&dev->gpu, 1024, &list->cmd) !=
         ADRENO_OK)
         return E_OUTOFMEMORY;
+    (void)adreno_d3d12_resource_create(&dev->gpu, 16384u, &list->tex_desc_bo);
     list->initialized = TRUE;
     if (dev->wddm_bridge && dev->wddm.core &&
         dev->wddm.core->pfnSetCommandListDDITableCb &&
@@ -2422,6 +3088,8 @@ static VOID APIENTRY UmdDestroyCommandList(D3D12DDI_HDEVICE hDevice,
     (void)hDevice;
     if (!list)
         return;
+    if (list->tex_desc_bo.handle)
+        adreno_d3d12_resource_destroy(&list->tex_desc_bo);
     if (list->initialized)
         adreno_d3d12_cmdlist_destroy(&list->cmd);
     memset(list, 0, sizeof(*list));
@@ -2445,16 +3113,24 @@ static VOID APIENTRY UmdResetCommandList(
     if (!list || !list->initialized)
         return;
     adreno_d3d12_cmdlist_reset(&list->cmd);
+    list->tex_desc_slot = 0;
     list->closed = FALSE;
     list->pso = NULL;
     list->root_signature = NULL;
     list->descriptor_heap = NULL;
+    list->sampler_heap = NULL;
     list->compute_uav_va = 0;
     memset(list->compute_constants, 0, sizeof(list->compute_constants));
     list->has_compute_uav = FALSE;
     list->rtv = NULL;
     memset(&list->viewport, 0, sizeof(list->viewport));
     list->has_viewport = FALSE;
+    list->has_scissor = FALSE;
+    list->num_vbufs = 0;
+    list->has_ibuf = FALSE;
+    list->gfx_const_vec4s = 0;
+    list->gfx_srv_mask = 0;
+    list->gfx_samp_mask = 0;
 }
 
 static uint32_t umd_pack_rtv_color(DXGI_FORMAT format, const FLOAT color[4])
@@ -2895,8 +3571,12 @@ static VOID APIENTRY UmdExecuteCommandLists(
             umd_log("adreno730_d3d12: command list not closed\n");
             return;
         }
+        if (list->cmd.cmd_bo.host && list->cmd.pm4.count)
+            AdrenoArm64FlushDcache(list->cmd.cmd_bo.host,
+                                   (size_t)list->cmd.pm4.count * 4u);
         cmd_ptrs[n++] = &list->cmd;
     }
+    umd_flush_all_resources(queue->device);
     seqno = queue->device->gpu.next_seqno + 1;
     st = adreno_d3d12_submit_lists(&queue->device->gpu, cmd_ptrs, n, seqno);
     if (st != ADRENO_OK) {
@@ -2991,6 +3671,7 @@ static VOID APIENTRY UmdSignalFence(D3D12DDI_HCOMMANDQUEUE hCommandQueue,
             umd_log("adreno730_d3d12: fence signal wait failed\n");
             return;
         }
+        umd_flush_all_resources(queue->device);
     }
     umd_fence_write(queue->device, fence->value_va, op->Value);
     if (fence->monitored_va && fence->monitored_va != fence->value_va)
@@ -3022,12 +3703,32 @@ static VOID APIENTRY UmdWaitForFence(D3D12DDI_HCOMMANDQUEUE hCommandQueue,
 static HRESULT APIENTRY UmdStubOk(void)
 {
     static int stub_logs = 0;
-    if (stub_logs < 32) {
+    if (stub_logs < 200) {
         stub_logs++;
         umd_trace("UmdStubOk invoked (#%d)", stub_logs);
     }
     return S_OK;
 }
+
+#define UMD_DEF_STUB(n) static HRESULT APIENTRY UmdStub_##n(void) { \
+    static int c = 0; if (++c <= 4) umd_trace("UmdStub slot=%d (call #%d)", n, c); return S_OK; }
+#define UMD_DEF_STUB10(b) UMD_DEF_STUB(b##0) UMD_DEF_STUB(b##1) UMD_DEF_STUB(b##2) UMD_DEF_STUB(b##3) UMD_DEF_STUB(b##4) \
+                          UMD_DEF_STUB(b##5) UMD_DEF_STUB(b##6) UMD_DEF_STUB(b##7) UMD_DEF_STUB(b##8) UMD_DEF_STUB(b##9)
+UMD_DEF_STUB(0) UMD_DEF_STUB(1) UMD_DEF_STUB(2) UMD_DEF_STUB(3) UMD_DEF_STUB(4)
+UMD_DEF_STUB(5) UMD_DEF_STUB(6) UMD_DEF_STUB(7) UMD_DEF_STUB(8) UMD_DEF_STUB(9)
+UMD_DEF_STUB10(1) UMD_DEF_STUB10(2) UMD_DEF_STUB10(3) UMD_DEF_STUB10(4) UMD_DEF_STUB10(5)
+UMD_DEF_STUB10(6) UMD_DEF_STUB10(7) UMD_DEF_STUB10(8) UMD_DEF_STUB10(9) UMD_DEF_STUB10(10)
+UMD_DEF_STUB10(11) UMD_DEF_STUB10(12) UMD_DEF_STUB10(13) UMD_DEF_STUB10(14) UMD_DEF_STUB10(15)
+
+#define UMD_REF_STUB10(b) (void*)UmdStub_##b##0, (void*)UmdStub_##b##1, (void*)UmdStub_##b##2, (void*)UmdStub_##b##3, (void*)UmdStub_##b##4, \
+                          (void*)UmdStub_##b##5, (void*)UmdStub_##b##6, (void*)UmdStub_##b##7, (void*)UmdStub_##b##8, (void*)UmdStub_##b##9
+static void *g_umd_slot_stubs[160] = {
+    (void*)UmdStub_0, (void*)UmdStub_1, (void*)UmdStub_2, (void*)UmdStub_3, (void*)UmdStub_4,
+    (void*)UmdStub_5, (void*)UmdStub_6, (void*)UmdStub_7, (void*)UmdStub_8, (void*)UmdStub_9,
+    UMD_REF_STUB10(1), UMD_REF_STUB10(2), UMD_REF_STUB10(3), UMD_REF_STUB10(4), UMD_REF_STUB10(5),
+    UMD_REF_STUB10(6), UMD_REF_STUB10(7), UMD_REF_STUB10(8), UMD_REF_STUB10(9), UMD_REF_STUB10(10),
+    UMD_REF_STUB10(11), UMD_REF_STUB10(12), UMD_REF_STUB10(13), UMD_REF_STUB10(14), UMD_REF_STUB10(15)
+};
 
 static UINT APIENTRY UmdGetImplicitPhysicalAdapterMask(D3D12DDI_HDEVICE hDevice)
 {
@@ -3068,6 +3769,215 @@ static VOID APIENTRY UmdCheckSubresourceInfo(
         out->RowStride = res->row_pitch ? res->row_pitch : res->size;
         out->DepthStride = res->size;
     }
+}
+
+/* ---- DXGI SwapChain Present & Blt --------------------------------------- */
+
+static VOID APIENTRY UmdBlt(D3D12DDI_HCOMMANDLIST hCommandList,
+                            const D3D12DDIARG_BLT *args)
+{
+    UMD_CMDLIST *list = (UMD_CMDLIST *)hCommandList.pDrvPrivate;
+    UMD_RESOURCE *dst, *src;
+    uint32_t sw, sh, dw, dh, cw, ch;
+    adreno_a730_rtv d_rtv, s_rtv;
+
+    if (!list || !list->initialized || list->closed || !args)
+        return;
+    dst = umd_resource(args->hDstResource);
+    src = umd_resource(args->hSrcResource);
+    if (!dst || !src || !dst->texture2d || !src->texture2d)
+        return;
+    sw = (args->SrcRight > args->SrcLeft) ? (args->SrcRight - args->SrcLeft) : src->width;
+    sh = (args->SrcBottom > args->SrcTop) ? (args->SrcBottom - args->SrcTop) : src->height;
+    dw = (args->DstRight > args->DstLeft) ? (args->DstRight - args->DstLeft) : dst->width;
+    dh = (args->DstBottom > args->DstTop) ? (args->DstBottom - args->DstTop) : dst->height;
+    cw = (sw < dw) ? sw : dw;
+    ch = (sh < dh) ? sh : dh;
+    if (cw == 0 || ch == 0)
+        return;
+
+    memset(&d_rtv, 0, sizeof(d_rtv));
+    memset(&s_rtv, 0, sizeof(s_rtv));
+    d_rtv.iova = dst->gpu_va; d_rtv.width = dst->width; d_rtv.height = dst->height; d_rtv.pitch = dst->row_pitch;
+    s_rtv.iova = src->gpu_va; s_rtv.width = src->width; s_rtv.height = src->height; s_rtv.pitch = src->row_pitch;
+    umd_dxgi_to_a730_rtv(dst->format, &d_rtv.fmt, &d_rtv.swap);
+    umd_dxgi_to_a730_rtv(src->format, &s_rtv.fmt, &s_rtv.swap);
+
+    if (adreno_d3d12_cmdlist_reserve(&list->cmd, 128u) == ADRENO_OK) {
+        (void)adreno_a730_emit_copy_2d(&list->cmd.pm4,
+                                       &d_rtv, args->DstLeft, args->DstTop,
+                                       &s_rtv, args->SrcLeft, args->SrcTop,
+                                       cw, ch);
+        umd_trace("UmdBlt 2D-HW: dst=0x%llx src=0x%llx %ux%u",
+                  (unsigned long long)dst->gpu_va, (unsigned long long)src->gpu_va, cw, ch);
+    }
+}
+
+static VOID APIENTRY UmdResourceCopy(
+    D3D12DDI_HCOMMANDLIST hCommandList,
+    D3D12DDI_HRESOURCE hDstResource,
+    D3D12DDI_HRESOURCE hSrcResource)
+{
+    UMD_CMDLIST *list = (UMD_CMDLIST *)hCommandList.pDrvPrivate;
+    UMD_RESOURCE *dst = umd_resource(hDstResource);
+    UMD_RESOURCE *src = umd_resource(hSrcResource);
+
+    if (!list || !list->initialized || list->closed || !dst || !src)
+        return;
+
+    if (dst->texture2d && src->texture2d &&
+        dst->width > 0 && dst->height > 0 && src->width > 0 && src->height > 0) {
+        adreno_a730_rtv d_rtv, s_rtv;
+        uint32_t cw = (src->width < dst->width) ? src->width : dst->width;
+        uint32_t ch = (src->height < dst->height) ? src->height : dst->height;
+        memset(&d_rtv, 0, sizeof(d_rtv));
+        memset(&s_rtv, 0, sizeof(s_rtv));
+        d_rtv.iova = dst->gpu_va; d_rtv.width = dst->width; d_rtv.height = dst->height; d_rtv.pitch = dst->row_pitch;
+        s_rtv.iova = src->gpu_va; s_rtv.width = src->width; s_rtv.height = src->height; s_rtv.pitch = src->row_pitch;
+        umd_dxgi_to_a730_rtv(dst->format, &d_rtv.fmt, &d_rtv.swap);
+        umd_dxgi_to_a730_rtv(src->format, &s_rtv.fmt, &s_rtv.swap);
+        if (cw > 0 && ch > 0 &&
+            adreno_d3d12_cmdlist_reserve(&list->cmd, 128u) == ADRENO_OK) {
+            (void)adreno_a730_emit_copy_2d(&list->cmd.pm4, &d_rtv, 0, 0, &s_rtv, 0, 0, cw, ch);
+            umd_trace("ResourceCopy 2D-HW: dst=0x%llx src=0x%llx %ux%u",
+                      (unsigned long long)dst->gpu_va, (unsigned long long)src->gpu_va, cw, ch);
+        }
+    } else {
+        uint32_t bytes = (dst->size < src->size) ? dst->size : src->size;
+        uint32_t dwords = bytes / 4u;
+        if (dwords > 0 && dst->bo_offset <= 0xffffffffull && src->bo_offset <= 0xffffffffull) {
+            (void)adreno_d3d12_cmd_copy_u32(&list->cmd, &dst->bo, (uint32_t)dst->bo_offset,
+                                            &src->bo, (uint32_t)src->bo_offset, dwords);
+            umd_trace("ResourceCopy BUF: dst=0x%llx src=0x%llx dwords=%u",
+                      (unsigned long long)dst->gpu_va, (unsigned long long)src->gpu_va, dwords);
+        }
+    }
+}
+
+static VOID APIENTRY UmdPresent(
+    D3D12DDI_HCOMMANDLIST hCommandList,
+    D3D12DDI_HCOMMANDQUEUE hCommandQueue,
+    const D3D12DDIARG_PRESENT_0001 *args,
+    D3D12DDI_PRESENT_0051 *out_present,
+    D3D12DDI_PRESENT_CONTEXTS_0051 *out_contexts,
+    D3D12DDI_PRESENT_HWQUEUES_0051 *out_hwqueues)
+{
+    UMD_CMDLIST *list = (UMD_CMDLIST *)hCommandList.pDrvPrivate;
+    UMD_QUEUE *queue  = (UMD_QUEUE *)hCommandQueue.pDrvPrivate;
+    UMD_DEVICE *dev   = queue ? queue->device : (list ? list->device : NULL);
+    UMD_RESOURCE *src = NULL, *dst = NULL;
+
+    if (out_present)
+        memset(out_present, 0, sizeof(*out_present));
+    if (out_contexts)
+        memset(out_contexts, 0, sizeof(*out_contexts));
+    if (out_hwqueues)
+        memset(out_hwqueues, 0, sizeof(*out_hwqueues));
+
+    if (args && args->SurfacesToPresent > 0 && args->phSurfacesToPresent)
+        src = umd_resource(args->phSurfacesToPresent[0].hSurface);
+    if (args && args->hDstResource.pDrvPrivate)
+        dst = umd_resource(args->hDstResource);
+
+    if (out_present) {
+        if (src)
+            out_present->BroadcastSrcAllocation[0] = (D3DKMT_HANDLE)src->bo.handle;
+        if (dst)
+            out_present->BroadcastDstAllocation[0] = (D3DKMT_HANDLE)dst->bo.handle;
+        out_present->BackBufferMultiplicity = 1;
+        out_present->AddedGpuWork = FALSE;
+
+        /* If runtime requested a Blt present into a separate destination surface, emit HW 2D copy */
+        if (list && list->initialized && !list->closed &&
+            src && dst && src != dst && src->texture2d && dst->texture2d &&
+            args && args->Flags.Blt) {
+            adreno_a730_rtv d_rtv, s_rtv;
+            uint32_t cw = (src->width < dst->width) ? src->width : dst->width;
+            uint32_t ch = (src->height < dst->height) ? src->height : dst->height;
+            memset(&d_rtv, 0, sizeof(d_rtv));
+            memset(&s_rtv, 0, sizeof(s_rtv));
+            d_rtv.iova = dst->gpu_va; d_rtv.width = dst->width; d_rtv.height = dst->height; d_rtv.pitch = dst->row_pitch;
+            s_rtv.iova = src->gpu_va; s_rtv.width = src->width; s_rtv.height = src->height; s_rtv.pitch = src->row_pitch;
+            umd_dxgi_to_a730_rtv(dst->format, &d_rtv.fmt, &d_rtv.swap);
+            umd_dxgi_to_a730_rtv(src->format, &s_rtv.fmt, &s_rtv.swap);
+            if (cw > 0 && ch > 0 &&
+                adreno_d3d12_cmdlist_reserve(&list->cmd, 128u) == ADRENO_OK &&
+                adreno_a730_emit_copy_2d(&list->cmd.pm4, &d_rtv, 0, 0, &s_rtv, 0, 0, cw, ch)) {
+                out_present->AddedGpuWork = TRUE;
+            }
+        }
+    }
+
+    if (out_contexts && dev && dev->wddm.h_context) {
+        out_contexts->hContext = dev->wddm.h_context;
+        out_contexts->BroadcastContextCount = 0;
+    }
+
+    umd_trace("UmdPresent: src=0x%x(%ux%u) dst=0x%x flags=0x%x vidpn=%u ctx=%p gpuWork=%d",
+              src ? (unsigned)src->bo.handle : 0u,
+              src ? src->width : 0u, src ? src->height : 0u,
+              dst ? (unsigned)dst->bo.handle : 0u,
+              args ? (unsigned)args->Flags.Value : 0u,
+              args ? (unsigned)args->VidPnSourceID : 0u,
+              (dev && dev->wddm.h_context) ? dev->wddm.h_context : NULL,
+              out_present ? (int)out_present->AddedGpuWork : 0);
+}
+
+static HRESULT APIENTRY UmdDxgiGetGammaCaps(DXGI_DDI_ARG_GET_GAMMA_CONTROL_CAPS *args)
+{
+    if (!args || !args->pGammaCapabilities)
+        return E_INVALIDARG;
+    memset(args->pGammaCapabilities, 0, sizeof(*args->pGammaCapabilities));
+    args->pGammaCapabilities->ScaleAndOffsetSupported = FALSE;
+    args->pGammaCapabilities->MaxConvertedValue = 1.0f;
+    args->pGammaCapabilities->MinConvertedValue = 0.0f;
+    args->pGammaCapabilities->NumGammaControlPoints = 0;
+    return S_OK;
+}
+
+static HRESULT APIENTRY UmdDxgiQueryResourceResidency(
+    DXGI_DDI_ARG_QUERYRESOURCERESIDENCY *args)
+{
+    UINT i;
+    if (!args)
+        return E_INVALIDARG;
+    for (i = 0; i < args->Resources; i++) {
+        if (args->pStatus)
+            args->pStatus[i] = DXGI_DDI_RESIDENCY_FULLY_RESIDENT;
+    }
+    return S_OK;
+}
+
+static HRESULT APIENTRY UmdDxgiCheckMpoColorSpace(
+    DXGI_DDI_ARG_CHECKMULTIPLANEOVERLAYCOLORSPACESUPPORT *args)
+{
+    if (!args)
+        return E_INVALIDARG;
+    args->Supported = (args->ColorSpace == D3DDDI_COLOR_SPACE_RGB_FULL_G22_NONE_P709 ||
+                       args->ColorSpace == D3DDDI_COLOR_SPACE_RGB_FULL_G10_NONE_P709) ? TRUE : FALSE;
+    return S_OK;
+}
+
+static HRESULT APIENTRY UmdDxgiPresent(DXGI_DDI_ARG_PRESENT *args)
+{
+    umd_trace("UmdDxgiPresent(src=%p flags=0x%x)",
+              args ? (void *)(uintptr_t)args->hSurfaceToPresent : NULL,
+              args ? (unsigned)args->Flags.Value : 0u);
+    return S_OK;
+}
+
+static HRESULT APIENTRY UmdDxgiPresent1(DXGI1_6_1_DDI_ARG_PRESENT *args)
+{
+    umd_trace("UmdDxgiPresent1(surfs=%u flags=0x%x)",
+              args ? args->SurfacesToPresent : 0u,
+              args ? (unsigned)args->Flags.Value : 0u);
+    return S_OK;
+}
+
+static HRESULT APIENTRY UmdDxgiOk1(void *arg)
+{
+    (void)arg;
+    return S_OK;
 }
 
 static VOID APIENTRY UmdCheckExistingResourceAllocationInfo(
@@ -3147,7 +4057,7 @@ static void umd_fill_null_slots(void *table, SIZE_T size)
     SIZE_T i, n = size / sizeof(void *);
     for (i = 0; i < n; i++) {
         if (!slots[i])
-            slots[i] = (void *)UmdStubOk;
+            slots[i] = (i < 160) ? g_umd_slot_stubs[i] : (void *)UmdStubOk;
     }
 }
 
@@ -3218,10 +4128,19 @@ static HRESULT APIENTRY UmdFillDDITable(D3D12DDI_HADAPTER hAdapter,
             UmdCalcPrivateHeapAndResourceSizes;
         funcs->pfnCreateHeapAndResource = UmdCreateHeapAndResource;
         funcs->pfnDestroyHeapAndResource = UmdDestroyHeapAndResource;
+        funcs->pfnMakeResident = UmdMakeResident;
+        funcs->pfnEvict = UmdEvict;
+        funcs->pfnCalcPrivateOpenedHeapAndResourceSizes =
+            UmdCalcPrivateOpenedHeapAndResourceSizes;
+        funcs->pfnOpenHeapAndResource = UmdOpenHeapAndResource;
         funcs->pfnMapHeap = UmdMapHeap;
         funcs->pfnUnmapHeap = UmdUnmapHeap;
         funcs->pfnCheckResourceVirtualAddress =
             UmdCheckResourceVirtualAddress;
+        funcs->pfnCheckResourceAllocationHandle =
+            UmdCheckResourceAllocationHandle;
+        funcs->pfnGetPresentPrivateDriverDataSize =
+            UmdGetPresentPrivateDriverDataSize;
         funcs->pfnGetDescriptorSizeInBytes = UmdGetDescriptorSizeInBytes;
         funcs->pfnCalcPrivateDescriptorHeapSize =
             UmdCalcPrivateDescriptorHeapSize;
@@ -3233,6 +4152,16 @@ static HRESULT APIENTRY UmdFillDDITable(D3D12DDI_HADAPTER hAdapter,
             UmdGetGPUDescriptorHandleForHeapStart;
         funcs->pfnCreateUnorderedAccessView =
             UmdCreateUnorderedAccessView;
+        funcs->pfnCreateShaderResourceView =
+            UmdCreateShaderResourceView;
+        funcs->pfnCreateConstantBufferView =
+            UmdCreateConstantBufferView;
+        funcs->pfnCreateSampler =
+            UmdCreateSampler;
+        funcs->pfnCopyDescriptors =
+            UmdCopyDescriptors;
+        funcs->pfnCopyDescriptorsSimple =
+            UmdCopyDescriptorsSimple;
         funcs->pfnCreateRenderTargetView =
             UmdCreateRenderTargetView;
         funcs->pfnCreateDepthStencilView =
@@ -3262,9 +4191,11 @@ static HRESULT APIENTRY UmdFillDDITable(D3D12DDI_HADAPTER hAdapter,
         funcs->pfnIASetVertexBuffers = UmdIASetVertexBuffers;
         funcs->pfnIASetIndexBuffer = UmdIASetIndexBuffer;
         funcs->pfnSetGraphicsRootSignature = UmdSetGraphicsRootSignature;
+        funcs->pfnSetGraphicsRootDescriptorTable = UmdSetGraphicsRootDescriptorTable;
         funcs->pfnSetGraphicsRoot32BitConstant = UmdSetGraphicsRoot32BitConstant;
         funcs->pfnSetGraphicsRoot32BitConstants = UmdSetGraphicsRoot32BitConstants;
         funcs->pfnSetGraphicsRootConstantBufferView = UmdSetGraphicsRootConstantBufferView;
+        funcs->pfnSetGraphicsRootShaderResourceView = UmdSetGraphicsRootShaderResourceView;
         funcs->pfnSetComputeRootSignature = UmdSetComputeRootSignature;
         funcs->pfnSetDescriptorHeaps = UmdSetDescriptorHeaps;
         funcs->pfnSetComputeRootDescriptorTable =
@@ -3280,11 +4211,14 @@ static HRESULT APIENTRY UmdFillDDITable(D3D12DDI_HADAPTER hAdapter,
         funcs->pfnClearRenderTargetView = UmdClearRenderTargetView;
         funcs->pfnClearDepthStencilView = UmdClearDepthStencilView;
         funcs->pfnCopyTextureRegion = UmdCopyTextureRegion;
+        funcs->pfnResourceCopy = UmdResourceCopy;
         funcs->pfnCopyBufferRegion = UmdCopyBufferRegion;
         funcs->pfnAtomicCopyBufferRegion = UmdAtomicCopyBufferRegion;
         funcs->pfnResourceBarrier = UmdResourceBarrier;
         funcs->pfnWriteBufferImmediate = UmdWriteBufferImmediate;
         funcs->pfnDiscardResource = UmdDiscardResource;
+        funcs->pfnBlt = UmdBlt;
+        funcs->pfnPresent = UmdPresent;
         umd_fill_null_slots(funcs, size);
         return S_OK;
     }
@@ -3300,10 +4234,26 @@ static HRESULT APIENTRY UmdFillDDITable(D3D12DDI_HADAPTER hAdapter,
         umd_fill_null_slots(funcs, size);
         return S_OK;
     }
-    case D3D12DDI_TABLE_TYPE_DXGI:
+    case D3D12DDI_TABLE_TYPE_DXGI: {
         memset(table, 0, size);
+        if (size >= sizeof(DXGI_DDI_BASE_FUNCTIONS)) {
+            DXGI_DDI_BASE_FUNCTIONS *dx = (DXGI_DDI_BASE_FUNCTIONS *)table;
+            dx->pfnPresent = UmdDxgiPresent;
+            dx->pfnGetGammaCaps = UmdDxgiGetGammaCaps;
+            dx->pfnSetDisplayMode = (HRESULT (APIENTRY *)(DXGI_DDI_ARG_SETDISPLAYMODE *))UmdDxgiOk1;
+            dx->pfnSetResourcePriority = (HRESULT (APIENTRY *)(DXGI_DDI_ARG_SETRESOURCEPRIORITY *))UmdDxgiOk1;
+            dx->pfnQueryResourceResidency = UmdDxgiQueryResourceResidency;
+            dx->pfnRotateResourceIdentities = (HRESULT (APIENTRY *)(DXGI_DDI_ARG_ROTATE_RESOURCE_IDENTITIES *))UmdDxgiOk1;
+            dx->pfnBlt = (HRESULT (APIENTRY *)(DXGI_DDI_ARG_BLT *))UmdDxgiOk1;
+        }
+        if (size >= sizeof(DXGI1_6_1_DDI_BASE_FUNCTIONS)) {
+            DXGI1_6_1_DDI_BASE_FUNCTIONS *dx6 = (DXGI1_6_1_DDI_BASE_FUNCTIONS *)table;
+            dx6->pfnPresent1 = UmdDxgiPresent1;
+            dx6->pfnCheckMultiplaneOverlayColorSpaceSupport = UmdDxgiCheckMpoColorSpace;
+        }
         umd_fill_null_slots(table, size);
         return S_OK;
+    }
     case D3D12DDI_TABLE_TYPE_0020_EXTENDED_FEATURES: {
         D3D12DDI_EXTENDED_FEATURES_FUNCS_0021 *funcs;
         if (size < sizeof(*funcs))

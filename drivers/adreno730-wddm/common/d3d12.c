@@ -328,7 +328,8 @@ enum adreno_status adreno_d3d12_cmd_dispatch_ir3(
            ((meta->localid_regid & 0xffu) << 24);
     wie1 = 0x00fcu | ((meta->threadsize & 1u) << 8);
 
-    if (!adreno_pm4_wait_for_idle(pm4) ||
+    if (!adreno_pm4_event_write_1(pm4, 0x31u /* CACHE_INVALIDATE7 */) ||
+        !adreno_pm4_wait_for_idle(pm4) ||
         !adreno_pm4_reg_write(pm4, REG_A6XX_SP_MODE_CNTL, 0x5u) ||
         !adreno_pm4_reg_write(pm4, REG_A7XX_SP_UPDATE_CNTL, 0xbfu) ||
         !adreno_pm4_reg_write(pm4, REG_A7XX_SP_CS_CONST_CONFIG,

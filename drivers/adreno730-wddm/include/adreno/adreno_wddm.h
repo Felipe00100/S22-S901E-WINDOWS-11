@@ -24,11 +24,16 @@ typedef struct adreno_wddm_alloc {
     uint32_t handle;
     uint32_t backend_handle;
     uint32_t size;
+    uint32_t width;
+    uint32_t height;
+    uint32_t row_pitch;
+    uint32_t dxgi_format;
     uint64_t pa;
     uint64_t iova;
     void *host;
     bool in_use;
     bool mapped; /* KMD-specific: SMMU entry installed by WDDM */
+    bool texture2d;
 } adreno_wddm_alloc;
 
 typedef struct adreno_wddm_ops {

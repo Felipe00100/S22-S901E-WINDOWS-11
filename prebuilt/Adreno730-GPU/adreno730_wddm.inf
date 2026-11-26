@@ -8,7 +8,7 @@ Class       = Display
 ClassGuid   = {4d36e968-e325-11ce-bfc1-08002be10318}
 Provider    = %ManufacturerName%
 CatalogFile = adreno730_wddm.cat
-DriverVer   = 11/24/2026,1.0.0.39
+DriverVer   = 11/26/2026,1.0.0.50
 PnpLockdown = 1
 
 [SourceDisksNames]
@@ -58,8 +58,8 @@ ErrorControl  = 1
 ServiceBinary = %12%\adreno730_wddm.sys
 
 [Strings]
-ManufacturerName       = "Adreno WOA Project"
-DeviceName             = "Qualcomm Adreno 730 WDDM 2.0 (S22)"
+ManufacturerName       = "Qualcomm"
+DeviceName             = "Adreno 730"
 ServiceName            = "Adreno 730 WDDM 2.0"
 DiskName               = "Adreno 730 WDDM Install Disk"
 REG_DWORD              = 0x00010001

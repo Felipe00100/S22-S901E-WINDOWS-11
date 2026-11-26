@@ -132,6 +132,12 @@ extern const adreno_d3d12_ir3_meta adreno_d3d12_a730_test_meta;
 typedef struct adreno_wddm_alloc_private {
     uint32_t magic;
     uint32_t size;
+    uint32_t width;
+    uint32_t height;
+    uint32_t row_pitch;
+    uint32_t format;
+    uint32_t texture2d;
+    uint32_t reserved;
 } adreno_wddm_alloc_private;
 
 /*

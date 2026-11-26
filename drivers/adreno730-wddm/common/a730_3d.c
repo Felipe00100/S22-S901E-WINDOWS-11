@@ -291,6 +291,68 @@ bool adreno_a730_emit_copy_2d(adreno_pm4 *pm4,
     return true;
 }
 
+/* ---- A730 TPL1 Texture & Sampler Descriptor Encoders ------------------- */
+
+void adreno_a730_encode_tex_memobj(const adreno_a730_tex_desc *t, uint32_t out_dw[16])
+{
+    uint32_t array_pitch_4k;
+
+    memset(out_dw, 0, 16u * sizeof(uint32_t));
+    if (!t || !t->iova || t->width == 0 || t->height == 0)
+        return;
+
+    /* DW0: TILE6_LINEAR(0) | SRGB(bit2) | SWIZ X/Y/Z/W=(0,1,2,3) | MIPLVLS=0 | SAMPLES=0 | FMT(29:22) | SWAP(31:30) */
+    out_dw[0] = (0u << 0) |
+                (t->srgb ? (1u << 2) : 0u) |
+                (0u << 4) | (1u << 7) | (2u << 10) | (3u << 13) |
+                ((t->fmt & 0xffu) << 22) |
+                ((t->swap & 3u) << 30);
+    /* DW1: WIDTH(14:0) | HEIGHT(29:15) */
+    out_dw[1] = (t->width & 0x7fffu) | ((t->height & 0x7fffu) << 15);
+    /* DW2: PITCHALIGN(3:0)=0 (64B) | PITCH(28:7) in bytes | TYPE(31:29)=1 (A6XX_TEX_2D) */
+    out_dw[2] = ((t->pitch & 0x3fffffu) << 7) | (1u << 29);
+    /* DW3: ARRAY_PITCH(22:0) in 4KB units */
+    array_pitch_4k = (uint32_t)(((uint64_t)t->pitch * t->height + 4095ull) >> 12);
+    out_dw[3] = array_pitch_4k & 0x7fffffu;
+    /* DW4: BASE_LO (bits 31:5) */
+    out_dw[4] = (uint32_t)(t->iova & 0xffffffe0ull);
+    /* DW5: BASE_HI (bits 16:0) | DEPTH(29:17)=1 */
+    out_dw[5] = ((uint32_t)(t->iova >> 32) & 0x1ffffu) | (1u << 17);
+}
+
+void adreno_a730_encode_tex_samp(const adreno_a730_samp_desc *s, uint32_t out_dw[4])
+{
+    uint32_t mag = (s && s->mag_linear) ? 1u : 0u;
+    uint32_t min = (s && s->min_linear) ? 1u : 0u;
+    uint32_t mip = (s && s->mip_linear) ? 1u : 0u;
+    uint32_t wu  = s ? (s->wrap_u & 7u) : ADRENO_TEX_WRAP_CLAMP_TO_EDGE;
+    uint32_t wv  = s ? (s->wrap_v & 7u) : ADRENO_TEX_WRAP_CLAMP_TO_EDGE;
+    uint32_t ww  = s ? (s->wrap_w & 7u) : ADRENO_TEX_WRAP_CLAMP_TO_EDGE;
+
+    out_dw[0] = (mip << 0) | (mag << 1) | (min << 3) |
+                (wu << 5) | (wv << 8) | (ww << 11);
+    /* Normalized coordinates (0..1), clamp LOD to [0, 0] for single-mip textures */
+    out_dw[1] = 0u;
+    out_dw[2] = 0u;
+    out_dw[3] = 0u;
+}
+
+static bool a730_emit_load_state6_frag_indirect(adreno_pm4 *pm4,
+                                                uint32_t state_type,
+                                                uint32_t state_block,
+                                                adreno_iova_t iova,
+                                                uint32_t num_units)
+{
+    uint32_t ctrl = ((state_type & 3u) << 14) |
+                    (2u << 16) | /* SS6_INDIRECT */
+                    ((state_block & 0xfu) << 18) |
+                    ((num_units & 0x3ffu) << 22);
+    return adreno_pm4_emit_pkt7(pm4, CP_LOAD_STATE6_FRAG, 3) &&
+           adreno_pm4_emit(pm4, ctrl) &&
+           adreno_pm4_emit(pm4, (uint32_t)iova) &&
+           adreno_pm4_emit(pm4, (uint32_t)(iova >> 32));
+}
+
 /* ---- A730 3D Hardware Sysmem Direct-Render Draw ------------------------ */
 
 bool adreno_a730_emit_draw_3d(adreno_pm4 *pm4, const adreno_a730_draw_desc *d)
@@ -341,6 +403,8 @@ bool adreno_a730_emit_draw_3d(adreno_pm4 *pm4, const adreno_a730_draw_desc *d)
         !adreno_pm4_emit(pm4, 0u) ||
         !adreno_pm4_event_write_1(pm4, ADRENO_CCU_FLUSH_COLOR) ||
         !adreno_pm4_event_write_1(pm4, ADRENO_CCU_INVALIDATE_COLOR) ||
+        !adreno_pm4_event_write_1(pm4, CACHE_INVALIDATE7) ||
+        !adreno_pm4_wait_for_idle(pm4) ||
         !adreno_pm4_emit_pkt7(pm4, CP_SET_VISIBILITY_OVERRIDE, 1) ||
         !adreno_pm4_emit(pm4, 1u) ||
         !adreno_pm4_emit_pkt7(pm4, CP_SET_MODE, 1) ||
@@ -604,9 +668,16 @@ bool adreno_a730_emit_draw_3d(adreno_pm4 *pm4, const adreno_a730_draw_desc *d)
         !adreno_pm4_reg_write(pm4, REG_A6XX_SP_PS_PROGRAM_COUNTER_OFFSET, 0u) ||
         !adreno_pm4_reg_write64(pm4, REG_A6XX_SP_PS_BASE, d->ps.iova) ||
         !adreno_pm4_reg_write(pm4, REG_A6XX_SP_PS_INSTR_SIZE, d->ps.instrlen_units) ||
-        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_PS_CONFIG, 0x100u /* ENABLED */) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_PS_CONFIG,
+                              0x100u /* ENABLED */ |
+                              ((d->ps.num_textures & 0xffu) << 9) |
+                              ((d->ps.num_samplers & 0x1fu) << 17)) ||
         !adreno_pm4_reg_write(pm4, REG_A7XX_SP_PS_CONST_CONFIG,
                               ((d->ps.constlen >> 2) & 0xffu) | 0x100u) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_SP_PS_TSIZE, d->ps.num_textures) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_TPL1_PS_SWIZZLE_CNTL, 0u) ||
+        !adreno_pm4_reg_write(pm4, REG_A6XX_TPL1_MODE_CNTL,
+                              2u /* ISAMMODE_GL */ | (1u << 7) /* DESTDATATYPEOVERRIDE */) ||
         !adreno_pm4_reg_write(pm4, REG_A7XX_SP_PS_VGS_CNTL, 0u) ||
         !adreno_pm4_reg_write(pm4, REG_A6XX_SP_PS_PVT_MEM_PARAM, 0u) ||
         !adreno_pm4_reg_write64(pm4, REG_A6XX_SP_PS_PVT_MEM_BASE, 0ull) ||
@@ -661,13 +732,33 @@ bool adreno_a730_emit_draw_3d(adreno_pm4 *pm4, const adreno_a730_draw_desc *d)
             return false;
     }
 
-    /* Load PS instructions + optional inline constants */
+    /* Load PS instructions + optional inline constants + TPL1 textures/samplers */
     if (!adreno_pm4_load_state6_shader(pm4, ADRENO_SB6_FS_SHADER,
                                        d->ps.iova, d->ps.instrlen_units))
         return false;
     if (d->ps.constants && d->ps.const_vec4s) {
         if (!adreno_pm4_load_state6_const(pm4, ADRENO_SB6_FS_SHADER, 0u,
                                           d->ps.constants, d->ps.const_vec4s))
+            return false;
+    }
+    if (d->ps.num_samplers > 0u && d->ps.tex_samp_iova) {
+        if (!a730_emit_load_state6_frag_indirect(pm4, ADRENO_ST6_SHADER,
+                                                 ADRENO_SB6_FS_TEX,
+                                                 d->ps.tex_samp_iova,
+                                                 d->ps.num_samplers) ||
+            !adreno_pm4_reg_write64(pm4, REG_A6XX_SP_PS_SAMPLER_BASE,
+                                    d->ps.tex_samp_iova))
+            return false;
+    }
+    if (d->ps.num_textures > 0u && d->ps.tex_memobj_iova) {
+        if (!adreno_pm4_event_write_1(pm4, CACHE_INVALIDATE7) ||
+            !adreno_pm4_wait_for_idle(pm4) ||
+            !a730_emit_load_state6_frag_indirect(pm4, ADRENO_ST6_CONSTANTS,
+                                                 ADRENO_SB6_FS_TEX,
+                                                 d->ps.tex_memobj_iova,
+                                                 d->ps.num_textures) ||
+            !adreno_pm4_reg_write64(pm4, REG_A6XX_SP_PS_TEXMEMOBJ_BASE,
+                                    d->ps.tex_memobj_iova))
             return false;
     }
 

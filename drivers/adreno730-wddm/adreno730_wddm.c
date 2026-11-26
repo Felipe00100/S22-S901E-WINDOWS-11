@@ -220,6 +220,7 @@ static NTSTATUS APIENTRY WddmStartDevice(PVOID context, PVOID start_info,
 
     if (AdrenoDispReadEnableFlag() &&
         NT_SUCCESS(AdrenoDispStart(&a->disp, a->device_handle, &a->dxgk))) {
+        AdrenoDispSetAperture(&a->disp, a->aperture_pa, a->aperture_pages);
         *sources = 1;
         *children = 1;
         WLog("StartDevice complete (FULL WDDM Render+Display %ux%u@60Hz, hw_ready=%u, wddm_ver=0x%x)",
@@ -536,7 +537,12 @@ static NTSTATUS APIENTRY WddmQueryAdapterInfo(
         caps->GpuEngineTopology.NbAsymetricProcessingNodes = 1;
         caps->SupportNonVGA = TRUE;
         caps->SupportPerEngineTDR = TRUE;
-        caps->FlipCaps.FlipOnVSyncMmIo = TRUE;
+        caps->SupportDirectFlip = TRUE;
+        caps->MaxQueuedFlipOnVSync = 2;
+        caps->FlipCaps.FlipOnVSyncWithNoWait = 1;
+        caps->FlipCaps.FlipOnVSyncMmIo = 1;
+        caps->FlipCaps.FlipImmediateMmIo = 1;
+        caps->FlipCaps.FlipIndependent = 1;
         caps->PresentationCaps.SupportSoftwareDeviceBitmaps = TRUE;
         caps->PresentationCaps.NoScreenToScreenBlt = TRUE;
         caps->PresentationCaps.NoOverlapScreenBlt = TRUE;
@@ -782,19 +788,37 @@ static NTSTATUS APIENTRY WddmCreateAllocation(
         DXGK_ALLOCATIONINFO *info = &arg->pAllocationInfo[i];
         adreno_wddm_alloc *alloc = NULL;
         SIZE_T req_size = info->Size;
+        uint32_t req_w = 0, req_h = 0, req_pitch = 0, req_fmt = 0;
+        bool req_tex2d = false;
 
         if (info->pPrivateDriverData &&
-            info->PrivateDriverDataSize >= sizeof(adreno_wddm_alloc_private)) {
+            info->PrivateDriverDataSize >= sizeof(uint32_t) * 2) {
             const adreno_wddm_alloc_private *priv =
                 (const adreno_wddm_alloc_private *)info->pPrivateDriverData;
-            if (priv->magic == ADRENO_WDDM_ALLOC_PRIVATE_MAGIC && priv->size)
+            if (priv->magic == ADRENO_WDDM_ALLOC_PRIVATE_MAGIC && priv->size) {
                 req_size = priv->size;
+                if (info->PrivateDriverDataSize >= sizeof(adreno_wddm_alloc_private)) {
+                    req_w = priv->width;
+                    req_h = priv->height;
+                    req_pitch = priv->row_pitch;
+                    req_fmt = priv->format;
+                    req_tex2d = priv->texture2d ? true : false;
+                }
+            }
         } else if (arg->pPrivateDriverData &&
-                   arg->PrivateDriverDataSize >= sizeof(adreno_wddm_alloc_private)) {
+                   arg->PrivateDriverDataSize >= sizeof(uint32_t) * 2) {
             const adreno_wddm_alloc_private *priv =
                 (const adreno_wddm_alloc_private *)arg->pPrivateDriverData;
-            if (priv->magic == ADRENO_WDDM_ALLOC_PRIVATE_MAGIC && priv->size)
+            if (priv->magic == ADRENO_WDDM_ALLOC_PRIVATE_MAGIC && priv->size) {
                 req_size = priv->size;
+                if (arg->PrivateDriverDataSize >= sizeof(adreno_wddm_alloc_private)) {
+                    req_w = priv->width;
+                    req_h = priv->height;
+                    req_pitch = priv->row_pitch;
+                    req_fmt = priv->format;
+                    req_tex2d = priv->texture2d ? true : false;
+                }
+            }
         }
         if (req_size == 0)
             req_size = 4096;
@@ -836,6 +860,11 @@ static NTSTATUS APIENTRY WddmCreateAllocation(
                 alloc->mapped = TRUE;
             }
         }
+        alloc->width = req_w;
+        alloc->height = req_h;
+        alloc->row_pitch = req_pitch;
+        alloc->dxgi_format = req_fmt;
+        alloc->texture2d = req_tex2d;
         info->hAllocation = alloc;
         info->Size = alloc->size;
         info->PitchAlignedSize = alloc->size;
@@ -850,9 +879,13 @@ static NTSTATUS APIENTRY WddmCreateAllocation(
         info->Flags.CpuVisible = 1;
         info->Flags.Cached = 0;
         info->AllocationPriority = 0;
-        if (InterlockedIncrement(&s_alloc_logs) <= 16)
-            WLog("CreateAllocation: size=%u h=%p", alloc->size, alloc);
+        if (InterlockedIncrement(&s_alloc_logs) <= 64)
+            WLog("CreateAllocation: size=%u %ux%u fmt=%u tex=%u h=%p res=%u",
+                 alloc->size, alloc->width, alloc->height, alloc->dxgi_format,
+                 alloc->texture2d ? 1u : 0u, alloc, (unsigned)arg->Flags.Resource);
     }
+    if (arg->Flags.Resource && arg->NumAllocations > 0)
+        arg->hResource = arg->pAllocationInfo[0].hAllocation;
     return STATUS_SUCCESS;
 }
 
@@ -872,6 +905,7 @@ static NTSTATUS APIENTRY WddmDestroyAllocation(
 static NTSTATUS APIENTRY WddmOpenAllocation(
     PVOID hDevice, const DXGKARG_OPENALLOCATION *arg)
 {
+    static volatile LONG s_open_logs = 0;
     UINT i;
     UNREFERENCED_PARAMETER(hDevice);
     if (!arg || !arg->pOpenAllocation)
@@ -879,6 +913,8 @@ static NTSTATUS APIENTRY WddmOpenAllocation(
     for (i = 0; i < arg->NumAllocations; i++)
         arg->pOpenAllocation[i].hDeviceSpecificAllocation =
             (HANDLE)(ULONG_PTR)arg->pOpenAllocation[i].hAllocation;
+    if (InterlockedIncrement(&s_open_logs) <= 32)
+        WLog("OpenAllocation: n=%u flags=0x%x", arg->NumAllocations, (UINT)arg->Flags.Value);
     return STATUS_SUCCESS;
 }
 
@@ -890,20 +926,129 @@ static NTSTATUS APIENTRY WddmCloseAllocation(
     return STATUS_SUCCESS;
 }
 
+static uint32_t WddmD3dToDxgiFormat(D3DDDIFORMAT d3d_fmt)
+{
+    switch (d3d_fmt) {
+    case D3DDDIFMT_A8B8G8R8:
+        return 28u; /* DXGI_FORMAT_R8G8B8A8_UNORM */
+    case D3DDDIFMT_A8R8G8B8:
+        return 87u; /* DXGI_FORMAT_B8G8R8A8_UNORM */
+    case D3DDDIFMT_X8R8G8B8:
+        return 88u; /* DXGI_FORMAT_B8G8R8X8_UNORM */
+    case D3DDDIFMT_A2B10G10R10:
+        return 24u; /* DXGI_FORMAT_R10G10B10A2_UNORM */
+    case (D3DDDIFORMAT)113:
+        return 10u; /* DXGI_FORMAT_R16G16B16A16_FLOAT */
+    default:
+        return 28u;
+    }
+}
+
 static NTSTATUS APIENTRY WddmGetStandardAllocationDriverData(
     PVOID context, DXGKARG_GETSTANDARDALLOCATIONDRIVERDATA *arg)
 {
+    static volatile LONG s_std_logs = 0;
+    adreno_wddm_alloc_private priv;
+    uint32_t w = 64, h = 64, pitch, sz, dxgi_fmt = 28u;
+
     UNREFERENCED_PARAMETER(context);
     if (!arg)
         return STATUS_INVALID_PARAMETER;
-    arg->AllocationPrivateDriverDataSize = 0;
-    arg->ResourcePrivateDriverDataSize = 0;
+
+    arg->AllocationPrivateDriverDataSize = sizeof(adreno_wddm_alloc_private);
+    arg->ResourcePrivateDriverDataSize = sizeof(adreno_wddm_alloc_private);
+
+    switch (arg->StandardAllocationType) {
+    case D3DKMDT_STANDARDALLOCATION_SHAREDPRIMARYSURFACE:
+        if (arg->pCreateSharedPrimarySurfaceData) {
+            w = arg->pCreateSharedPrimarySurfaceData->Width;
+            h = arg->pCreateSharedPrimarySurfaceData->Height;
+            dxgi_fmt = WddmD3dToDxgiFormat(arg->pCreateSharedPrimarySurfaceData->Format);
+        }
+        break;
+    case D3DKMDT_STANDARDALLOCATION_SHADOWSURFACE:
+        if (arg->pCreateShadowSurfaceData) {
+            w = arg->pCreateShadowSurfaceData->Width;
+            h = arg->pCreateShadowSurfaceData->Height;
+            dxgi_fmt = WddmD3dToDxgiFormat(arg->pCreateShadowSurfaceData->Format);
+            pitch = (w * 4u + 255u) & ~255u;
+            arg->pCreateShadowSurfaceData->Pitch = pitch;
+        }
+        break;
+    case D3DKMDT_STANDARDALLOCATION_STAGINGSURFACE:
+        if (arg->pCreateStagingSurfaceData) {
+            w = arg->pCreateStagingSurfaceData->Width;
+            h = arg->pCreateStagingSurfaceData->Height;
+            dxgi_fmt = 88u; /* X8R8G8B8 */
+            pitch = (w * 4u + 255u) & ~255u;
+            arg->pCreateStagingSurfaceData->Pitch = pitch;
+        }
+        break;
+    case D3DKMDT_STANDARDALLOCATION_GDISURFACE:
+        if (arg->pCreateGdiSurfaceData) {
+            w = arg->pCreateGdiSurfaceData->Width;
+            h = arg->pCreateGdiSurfaceData->Height;
+            dxgi_fmt = WddmD3dToDxgiFormat(arg->pCreateGdiSurfaceData->Format);
+            pitch = (w * 4u + 255u) & ~255u;
+            arg->pCreateGdiSurfaceData->Pitch = pitch;
+        }
+        break;
+    default:
+        break;
+    }
+
+    if (w == 0) w = 64;
+    if (h == 0) h = 64;
+    pitch = (w * 4u + 255u) & ~255u;
+    sz = (pitch * h + 4095u) & ~4095u;
+    if (sz == 0) sz = 4096u;
+
+    RtlZeroMemory(&priv, sizeof(priv));
+    priv.magic = ADRENO_WDDM_ALLOC_PRIVATE_MAGIC;
+    priv.size = sz;
+    priv.width = w;
+    priv.height = h;
+    priv.row_pitch = pitch;
+    priv.format = dxgi_fmt;
+    priv.texture2d = 1u;
+
+    if (arg->pAllocationPrivateDriverData)
+        RtlCopyMemory(arg->pAllocationPrivateDriverData, &priv, sizeof(priv));
+    if (arg->pResourcePrivateDriverData)
+        RtlCopyMemory(arg->pResourcePrivateDriverData, &priv, sizeof(priv));
+
+    if (InterlockedIncrement(&s_std_logs) <= 32)
+        WLog("GetStandardAllocData: type=%u %ux%u pitch=%u sz=%u fmt=%u ptrs=%p/%p",
+             (UINT)arg->StandardAllocationType, w, h, pitch, sz, dxgi_fmt,
+             arg->pAllocationPrivateDriverData, arg->pResourcePrivateDriverData);
     return STATUS_SUCCESS;
+}
+
+static D3DDDIFORMAT WddmDxgiToD3dFormat(uint32_t dxgi_fmt)
+{
+    switch (dxgi_fmt) {
+    case 28: /* DXGI_FORMAT_R8G8B8A8_UNORM */
+    case 29: /* DXGI_FORMAT_R8G8B8A8_UNORM_SRGB */
+        return D3DDDIFMT_A8B8G8R8;
+    case 87: /* DXGI_FORMAT_B8G8R8A8_UNORM */
+    case 91: /* DXGI_FORMAT_B8G8R8A8_UNORM_SRGB */
+        return D3DDDIFMT_A8R8G8B8;
+    case 88: /* DXGI_FORMAT_B8G8R8X8_UNORM */
+    case 93: /* DXGI_FORMAT_B8G8R8X8_UNORM_SRGB */
+        return D3DDDIFMT_X8R8G8B8;
+    case 24: /* DXGI_FORMAT_R10G10B10A2_UNORM */
+        return D3DDDIFMT_A2B10G10R10;
+    case 10: /* DXGI_FORMAT_R16G16B16A16_FLOAT */
+        return (D3DDDIFORMAT)113; /* D3DDDIFMT_A16B16G16R16F */
+    default:
+        return D3DDDIFMT_A8B8G8R8;
+    }
 }
 
 static NTSTATUS APIENTRY WddmDescribeAllocation(
     PVOID context, DXGKARG_DESCRIBEALLOCATION *arg)
 {
+    static volatile LONG s_desc_logs = 0;
     PADRENO_WDDM_ADAPTER a = (PADRENO_WDDM_ADAPTER)context;
     adreno_wddm_alloc *alloc;
 
@@ -912,9 +1057,15 @@ static NTSTATUS APIENTRY WddmDescribeAllocation(
     alloc = (adreno_wddm_alloc *)arg->hAllocation;
     if (!alloc || !alloc->in_use)
         return STATUS_INVALID_PARAMETER;
-    arg->Width = alloc->size;
-    arg->Height = 1;
-    arg->Format = (D3DDDIFORMAT)0;
+    if (alloc->texture2d && alloc->width > 0 && alloc->height > 0) {
+        arg->Width = alloc->width;
+        arg->Height = alloc->height;
+        arg->Format = WddmDxgiToD3dFormat(alloc->dxgi_format);
+    } else {
+        arg->Width = alloc->size;
+        arg->Height = 1;
+        arg->Format = D3DDDIFMT_A8B8G8R8;
+    }
     arg->MultisampleMethod.NumSamples = 1;
     arg->MultisampleMethod.NumQualityLevels = 1;
     arg->RefreshRate.Numerator = 60;
@@ -922,6 +1073,10 @@ static NTSTATUS APIENTRY WddmDescribeAllocation(
     arg->PrivateDriverFormatAttribute = 0;
     arg->Flags.Value = 0;
     arg->Rotation = D3DDDI_ROTATION_IDENTITY;
+    if (InterlockedIncrement(&s_desc_logs) <= 32)
+        WLog("DescribeAllocation: h=%p %ux%u d3dfmt=%u (dxgi=%u tex=%u)",
+             alloc, arg->Width, arg->Height, (unsigned)arg->Format,
+             alloc->dxgi_format, alloc->texture2d ? 1u : 0u);
     return STATUS_SUCCESS;
 }
 

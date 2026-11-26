@@ -33,13 +33,23 @@ extern "C" {
 #define ADRENO_PRIM_TRISTRIP           6u
 
 /* A6xx/A7xx state blocks for CP_LOAD_STATE6_GEOM / FRAG. */
+#define ADRENO_SB6_FS_TEX              4u
 #define ADRENO_SB6_VS_SHADER           8u
 #define ADRENO_SB6_FS_SHADER           12u
 
-/* Maximum vertex attributes & varyings supported by the initial 3D encoder. */
+/* Maximum vertex attributes, varyings, textures, and samplers. */
 #define ADRENO_3D_MAX_VBUFS            8u
 #define ADRENO_3D_MAX_VATTRS           16u
 #define ADRENO_3D_MAX_VARYINGS         8u
+#define ADRENO_3D_MAX_TEXTURES         8u
+#define ADRENO_3D_MAX_SAMPLERS         8u
+
+/* A6xx/A7xx texture wrap modes (a6xx_tex_clamp). */
+#define ADRENO_TEX_WRAP_REPEAT         0u
+#define ADRENO_TEX_WRAP_CLAMP_TO_EDGE  1u
+#define ADRENO_TEX_WRAP_MIRROR_REPEAT  2u
+#define ADRENO_TEX_WRAP_CLAMP_BORDER   3u
+#define ADRENO_TEX_WRAP_MIRROR_CLAMP   4u
 
 typedef struct adreno_a730_rtv {
     adreno_iova_t iova;
@@ -81,6 +91,25 @@ typedef struct adreno_a730_vs_desc {
     uint32_t      const_vec4s;
 } adreno_a730_vs_desc;
 
+typedef struct adreno_a730_tex_desc {
+    adreno_iova_t iova;
+    uint32_t      width;
+    uint32_t      height;
+    uint32_t      pitch;       /* row stride in bytes */
+    uint32_t      fmt;         /* ADRENO_FMT_* */
+    uint32_t      swap;        /* ADRENO_SWAP_* */
+    bool          srgb;
+} adreno_a730_tex_desc;
+
+typedef struct adreno_a730_samp_desc {
+    bool          mag_linear;
+    bool          min_linear;
+    bool          mip_linear;
+    uint32_t      wrap_u;      /* ADRENO_TEX_WRAP_* */
+    uint32_t      wrap_v;
+    uint32_t      wrap_w;
+} adreno_a730_samp_desc;
+
 typedef struct adreno_a730_ps_desc {
     adreno_iova_t iova;
     uint32_t      instrlen_units;  /* 128-byte units */
@@ -92,6 +121,10 @@ typedef struct adreno_a730_ps_desc {
     uint32_t      num_varying_scalars; /* total scalar varying components read via bary.f */
     const uint32_t *constants;     /* optional inline PS constants (const_vec4s * 4 dwords) */
     uint32_t      const_vec4s;
+    adreno_iova_t tex_memobj_iova; /* 64B-aligned array of num_textures x 16-dword A6XX_TEX_MEMOBJ */
+    uint32_t      num_textures;
+    adreno_iova_t tex_samp_iova;   /* 16B-aligned array of num_samplers x 4-dword A6XX_TEX_SAMP */
+    uint32_t      num_samplers;
 } adreno_a730_ps_desc;
 
 typedef struct adreno_a730_draw_desc {
@@ -126,7 +159,13 @@ bool adreno_a730_emit_copy_2d(adreno_pm4 *pm4,
                               const adreno_a730_rtv *src, uint32_t src_x, uint32_t src_y,
                               uint32_t copy_w, uint32_t copy_h);
 
-/* Emit full A730 3D sysmem direct-render state + VS/PS shaders + draw kick. */
+/* Encode a 64-byte A730 TPL1 2D linear texture descriptor (A6XX_TEX_MEMOBJ). */
+void adreno_a730_encode_tex_memobj(const adreno_a730_tex_desc *t, uint32_t out_dw[16]);
+
+/* Encode a 16-byte A730 TPL1 sampler descriptor (A6XX_TEX_SAMP). */
+void adreno_a730_encode_tex_samp(const adreno_a730_samp_desc *s, uint32_t out_dw[4]);
+
+/* Emit full A730 3D sysmem direct-render state + VS/PS shaders + textures + draw kick. */
 bool adreno_a730_emit_draw_3d(adreno_pm4 *pm4, const adreno_a730_draw_desc *d);
 
 #ifdef __cplusplus

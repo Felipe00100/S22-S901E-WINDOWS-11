@@ -45,6 +45,16 @@ typedef struct ADRENO_WDDM_DISPLAY {
 
     PHYSICAL_ADDRESS current_primary_pa;
     HANDLE current_primary_alloc;
+    volatile UINT current_primary_seg;
+
+    const uint64_t *aperture_pa;
+    uint32_t aperture_pages;
+
+    KEVENT scanout_event;
+    PETHREAD scanout_thread;
+    volatile LONG scanout_dirty;
+    volatile LONG scanout_stop;
+    volatile LONG scanout_blits;
 
     KTIMER vsync_timer;
     KDPC vsync_dpc;
@@ -56,6 +66,9 @@ BOOLEAN AdrenoDispReadEnableFlag(void);
 
 NTSTATUS AdrenoDispStart(PADRENO_WDDM_DISPLAY disp, HANDLE device_handle,
                          const DXGKRNL_INTERFACE *dxgk);
+VOID AdrenoDispSetAperture(PADRENO_WDDM_DISPLAY disp,
+                           const uint64_t *aperture_pa,
+                           uint32_t aperture_pages);
 VOID AdrenoDispStop(PADRENO_WDDM_DISPLAY disp);
 
 NTSTATUS AdrenoDispQueryChildRelations(PADRENO_WDDM_DISPLAY disp,

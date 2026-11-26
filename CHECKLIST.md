@@ -1,6 +1,6 @@
 # S22 Checklist (Windows 11 ARM64 — Hardware Real SM-S901E / r0q)
 tags: #s22 #windows11 #arm64 #checklist
-Updated 2026-11-24 · Windows 11 Pro ARM64 `26300.9457` · Mu-Silicium `r0q` · Adreno 730 WDDM 2.0 + Mesa 26.1.0 Turnip Vulkan 1.4.348
+Updated 2026-11-26 · Windows 11 Pro ARM64 `26300.9457` · Mu-Silicium `r0q` · Adreno 730 WDDM 2.0 (`v1.0.0.50`) + Native DirectX 12 + Mesa 26.1.0 Turnip Vulkan 1.4.348
 
 > Este checklist separa rigorosamente o que foi **verificado no S22 físico (`SM-S901E`)** do que está em trazida/experimental ou ainda não portado.
 
@@ -25,20 +25,25 @@ Updated 2026-11-24 · Windows 11 Pro ARM64 `26300.9457` · Mu-Silicium `r0q` · 
   - **Bridge MSI (`s22wlanpdc.sys` v1.0.19.0 hardened)**: intercepta os MSIs no DWC `iMSI-RX` (`Bank 2`) com limite de iterações, guarda de bus-error `0xFFFFFFFF`, `D0ExitPreInterruptsDisabled`, SDDL Admin/SYSTEM via INF `[HW]` e falha explícita se Bank 2 ausente, injetando direto em `GICD_ISPENDR[2]` com 0 BSOD e 0 perdas
   - **Fix de Coerência DMA SM8450 (`scripts/patch_qcwlan8280_wc.ps1` → `qcwlan8280_wc.sys`)**: patch de 3 palavras (`0x14002d1f0`, `0x1402a8a20`, `0x1400084d4`) mudando as alocações DMA do `qcwlan8280.sys` de `MmCached` para **`MmWriteCombined` (`Normal Non-Cacheable`)** para compatibilidade com o barramento PCIe0 não-coerente do SM8450 — `WCN6855` entra em Mission Mode (`bEe=2`), cria interfaces DBS (`Wi-Fi` + `Wi-Fi 3`), conecta e navega em 5 GHz!
 
-- [x] **GPU Adreno 730 — Full WDDM 2.0 (Render + Display) + DirectX 12 Nativo 100% Autoral + Vulkan 1.4.348 + DirectX 11 + OpenGL 4.6 + WebGL2!** 🎉
-  - **KMD Full WDDM 2.0 (`drivers/adreno730-wddm/`, `adreno730_wddm.sys` v1.0.0.39, MIT)**:
-    - Bring-up completo em 5 estágios no SM8450 (clocks GCC/GPUCC, SMMU-500 2 MiB `pt_pool`, RSCC/PDC + GMU, `cmd-db` + HFI, UBWC 4.0, `a730_sqe.fw` v1.81, sync **BR+BV**, timestamps 19,2 MHz e ringbuffer wrap-around). **Auto-start `StartGpu = 1` + `EnableDisplay = 1` padrão validados em cold reboot real com watchdog anti-bootloop `BootInProgress`!**
-    - **Full WDDM Display (`adreno730_display.c/.h`, 100% MIT autoral)**: 1 source + 1 target (`S22 OLED`, `DISPLAY\SMS0901`, EDID 128 B `1080×2340 @ 60Hz`), `CommitVidPn -> OK`, timer **VSync 60 Hz** funcional (`EnableDisplay = 1` padrão no INF), `SystemDisplayWrite` + scanout `0xB8000000`!
-  - **DirectX 12 UMD 100% Autoral em Hardware (`adreno730_d3d12.dll` v1.0.0.39, MIT)**:
-    - **Montador IR3 64-bit (`adreno_ir3_asm.h`/`ir3_asm.c`)**, **Backend 2D/3D PM4 A730 (`adreno_a730_3d.h`/`a730_3d.c`)** e **Compilador DXBC SM 4.0–5.1 → IR3 (`adreno_dxbc_ir3.h`/`dxbc_ir3.c`)** 100% autorais sob MIT (zero linhas copiadas de Mesa/NIR).
-    - **Verificado ao vivo no silício Adreno 730**: compila HLSL padrão (`vs_5_0`, `ps_5_0`, `cs_5_0` via `d3dcompiler_47`) direto para IR3 A730 — **Clear 2D em HW (`RB_A2D`/`CP_BLIT`) + Triângulo 3D RGB em HW (`1.22 ms`, RGBA exato) + `CopyTextureRegion` + Compute Shader `cs_5_0` (`CP_EXEC_CS` + `stg.u32` + `lock`/`unlock`, saída exata `0xcafebabe` / `0x52305131`)!**
+- [x] **GPU `Adreno 730` — Full WDDM 2.0 (Render + Display) + DirectX 12 Nativo 100% Autoral (2D/3D/CS/Texturas TPL1/Win32 SwapChain) + Vulkan 1.4.348 + DirectX 11 + OpenGL 4.6 + WebGL2!** 🎉
+  - **KMD Full WDDM 2.0 (`drivers/adreno730-wddm/`, `adreno730_wddm.sys` v1.0.0.50, MIT)**:
+    - Bring-up completo em 5 estágios no SM8450 (clocks GCC/GPUCC, SMMU-500 2 MiB `pt_pool`, RSCC/PDC + GMU, `cmd-db` + HFI, UBWC 4.0, `a730_sqe.fw` v1.81, sync **BR+BV**, timestamps 19,2 MHz e ringbuffer wrap-around). **Auto-start `StartGpu = 1` + `EnableDisplay = 1` padrão validados em cold reboot real com watchdog anti-bootloop `BootInProgress`!** Nome limpo **`Adreno 730`** no Windows/Task Manager.
+    - **Full WDDM Display & Scanout Primário (`adreno730_display.c/.h`, 100% MIT autoral)**: 1 source + 1 target (`S22 OLED`, `DISPLAY\SMS0901`, EDID 128 B `1080×2340 @ 60Hz`), `CommitVidPn -> OK`, timer **VSync 60 Hz**, thread IRQL-safe `AdrenoDispScanoutThread` (`SetVidPnSourceAddress → 0xB8000000` via `MmCopyMemory` físico), `WddmGetStandardAllocationDriverData` + `WddmDescribeAllocation` completos para superfícies GDI/SwapChain/cross-adapter e `DirectFlip`/`FlipIndependent`.
+  - **DirectX 12 UMD 100% Autoral em Hardware (`adreno730_d3d12.dll` v1.0.0.50, MIT)**:
+    - **Montador IR3 64-bit (`adreno_ir3_asm.h`/`ir3_asm.c`)**, **Backend 2D/3D PM4 A730 (`adreno_a730_3d.h`/`a730_3d.c`)** e **Compilador DXBC SM 4.0–5.1 → IR3 (`adreno_dxbc_ir3.h`/`dxbc_ir3.c`)** 100% autorais sob MIT (zero linhas copiadas de Mesa/NIR), com `CACHE_INVALIDATE7` automático em 3D e Compute.
+    - **Verificado ao vivo no silício Adreno 730 (4/4 testes PASS, `EXIT=0`)**:
+      - **Triângulo 3D RGB + Clear 2D HW**: `1.66 ms` (RGBA bit-exact);
+      - **Texturas 2D + Samplers + SRV (`Texture2D.Sample` → IR3 cat5 `sam` → A730 `TPL1`)**: **`0.87 ms`** (4 quadrantes RGBA bit-exact: Vermelho, Verde, Azul, Amarelo);
+      - **Compute Shader `cs_5_0` → IR3**: `CP_EXEC_CS` + `stg.u32` + `lock`/`unlock` (`0xcafebabe` / `0x52305131`);
+      - **Win32 `IDXGISwapChain3` `Present` nativo (`D3D12DDI_TABLE_TYPE_DXGI` + `UmdPresent` + `UmdResourceCopy` 2D HW + `UmdOpenHeapAndResource` + `UmdCheckResourceAllocationHandle`)**: `CreateSwapChainForHwnd(512×512 RGBA8 FLIP_DISCARD) -> S_OK`, **`10/10` frames `Present` OK**!
   - **Mesa 26.1.0 Turnip Vulkan 1.4.348 (`patches/mesa-turnip-woa/`, `vulkan_freedreno.dll`, MIT)**: backend nativo WDDM 2.0 (`D3DKMTEnumAdapters2`, sem deadlock de DXGI), fix EL0 `dc cvac`/`dc civac` no Windows ARM64, registrado globalmente via `vulkan-1.dll` + Win32 WSI (**`0.13–0.15 ms`** triângulo 3D e **240 frames contínuos a `355–402 FPS`**).
   - **Mesa 26.1.0 Zink OpenGL 4.6 (`opengl32.dll` + `libgallium_wgl.dll`, MIT)**: `zink Vulkan 1.4(Turnip Adreno (TM) 730)` — OpenGL 4.6 Compatibility Profile, FBO bit-exact e `60` frames `SwapBuffers` a **`61.9 FPS`**!
   - **DXVK 3.1.1 ARM64 (DirectX 8/9/10/11 sobre Vulkan, zlib)**: `D3D11CreateDevice(FL 11_0)` (`Turnip Adreno (TM) 730`), HLSL `vs_5_0`/`ps_5_0` → DXBC → SPIR-V → IR3 A730, triângulo 3D em **`3.64 ms`** (`PASS`).
   - **Microsoft Edge WebGL2 (ANGLE-Vulkan)**: `ANGLE (Qualcomm, Vulkan 1.4.348 (Turnip Adreno (TM) 730))` — **60 draws 3D em `0.50 ms`**, pixels RGB exatos e **0 crashes**!
 
 ## 🔧 Em Trazida / Próximos Passos (Agora testáveis ao vivo via Wi-Fi sem TWRP!)
-- [ ] **DirectX 12 Texturas/Samplers/SRV + DXGI SwapChain `Present` + Scanout DPU (`SetVidPnSourceAddress`)** para janelas D3D12 nativas e composição do `dwm.exe` na Adreno 730
+- [ ] **Isolamento SMMU por processo + D3D11On12 + `Adreno 730` como `Adapter[0]`** para composição nativa do `dwm.exe` e navegadores sem conflito de GPUVA + completar pipeline 3D (Depth/Stencil, Alpha Blending, UBO/CBV dinâmicos, controle de fluxo IR3, DXIL SM 6.x, GMEM tiling)
+- [ ] **Recuperação de RAM no UEFI (`PlatformMemoryMap`)**: reduzir carveouts não essenciais no UEFI `r0q` para aproximar os `5,4 GB` utilizáveis atuais dos `7,0 GiB` úteis já alcançados no Linux (preservando modem/EFS/TZ)
 - [ ] **Wi-Fi 2.4 GHz TX (`PMR735A s3e.e` PA)**: habilitar o trilho 2,2 V `s3e.e` via AOSS QMP (`0x0C300000`) no Windows (`s22wlanpdc.sys`) após `qcpep8450.sys` inicializar (5 GHz já funciona 100%)
 - [ ] **Bateria % + Carregamento + Limite 50–100% (`drivers/max77705-battery/`, `ACPI\MAXM7705`)**: testar ao vivo sobre Wi-Fi e resolver `PANIC_STACK_SWITCH (0x2B)` antes de habilitar `_STA = 0x0F` em `SSDT.asl`
 - [ ] **USB-C Dinâmico / Hot-Plug / USB-PD / Modo Device (`drivers/max77705-usbc/`, `ACPI\MAXM7706`)**: testar ao vivo sobre Wi-Fi e validar múltiplos dispositivos no hub USB (mouse + teclado + tethering)

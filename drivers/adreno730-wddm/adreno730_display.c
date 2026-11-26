@@ -116,6 +116,75 @@ BOOLEAN AdrenoDispReadEnableFlag(void)
     return enabled;
 }
 
+/* ---- PASSIVE_LEVEL Primary Scanout Blit Thread (0xB8000000) ------------ */
+
+static VOID AdrenoDispScanoutThread(PVOID ctx)
+{
+    PADRENO_WDDM_DISPLAY disp = (PADRENO_WDDM_DISPLAY)ctx;
+
+    while (disp && InterlockedCompareExchange(&disp->scanout_stop, 0, 0) == 0) {
+        KeWaitForSingleObject(&disp->scanout_event, Executive, KernelMode, FALSE, NULL);
+        if (InterlockedCompareExchange(&disp->scanout_stop, 0, 0) != 0)
+            break;
+        if (!disp->enabled || !disp->fb_va || !disp->source_visible || disp->fb_size == 0)
+            continue;
+
+        {
+            UINT seg = disp->current_primary_seg;
+            uint64_t addr = (uint64_t)disp->current_primary_pa.QuadPart;
+            SIZE_T total_bytes = disp->fb_size;
+            SIZE_T total_pages = (total_bytes + 4095u) >> 12;
+            SIZE_T p;
+            SIZE_T copied_total = 0;
+
+            if (addr == 0 || addr == (uint64_t)disp->fb_pa.QuadPart)
+                continue;
+
+            if (seg == 1 && disp->aperture_pa && disp->aperture_pages > 0) {
+                uint64_t base_page = addr >> 12;
+                if (base_page + total_pages <= disp->aperture_pages) {
+                    for (p = 0; p < total_pages; p++) {
+                        uint64_t pa = disp->aperture_pa[base_page + p];
+                        MM_COPY_ADDRESS src_addr;
+                        SIZE_T chunk, copied = 0;
+                        if (pa == 0 || pa == (uint64_t)disp->fb_pa.QuadPart)
+                            break;
+                        chunk = ((p + 1) * 4096u <= total_bytes) ? 4096u : (total_bytes - p * 4096u);
+                        src_addr.PhysicalAddress.QuadPart = (LONGLONG)pa;
+                        if (NT_SUCCESS(MmCopyMemory((uint8_t *)disp->fb_va + p * 4096u,
+                                                    src_addr, chunk,
+                                                    MM_COPY_MEMORY_PHYSICAL, &copied))) {
+                            copied_total += copied;
+                        }
+                    }
+                }
+            } else if (seg == 0 && addr >= 0x80000000ull) {
+                for (p = 0; p < total_pages; p++) {
+                    MM_COPY_ADDRESS src_addr;
+                    SIZE_T chunk, copied = 0;
+                    chunk = ((p + 1) * 4096u <= total_bytes) ? 4096u : (total_bytes - p * 4096u);
+                    src_addr.PhysicalAddress.QuadPart = (LONGLONG)(addr + (uint64_t)p * 4096ull);
+                    if (NT_SUCCESS(MmCopyMemory((uint8_t *)disp->fb_va + p * 4096u,
+                                                src_addr, chunk,
+                                                MM_COPY_MEMORY_PHYSICAL, &copied))) {
+                        copied_total += copied;
+                    }
+                }
+            }
+
+            if (copied_total > 0) {
+                LONG n = InterlockedIncrement(&disp->scanout_blits);
+                if (n <= 4) {
+                    DLog("Scanout blit #%ld -> fb 0x%llx (seg=%u addr=0x%llx bytes=%llu)",
+                         n, (uint64_t)disp->fb_pa.QuadPart, seg, addr, (uint64_t)copied_total);
+                }
+            }
+        }
+    }
+
+    PsTerminateSystemThread(STATUS_SUCCESS);
+}
+
 /* ---- 60 Hz VSync Timer DPC --------------------------------------------- */
 
 static VOID AdrenoDispVsyncDpc(PKDPC dpc, PVOID ctx, PVOID arg1, PVOID arg2)
@@ -132,6 +201,9 @@ static VOID AdrenoDispVsyncDpc(PKDPC dpc, PVOID ctx, PVOID arg1, PVOID arg2)
         return;
 
     InterlockedIncrement(&disp->vsync_count);
+
+    if (InterlockedExchange(&disp->scanout_dirty, 0) != 0 && disp->scanout_thread)
+        KeSetEvent(&disp->scanout_event, IO_NO_INCREMENT, FALSE);
 
     RtlZeroMemory(&data, sizeof(data));
     data.InterruptType = DXGK_INTERRUPT_CRTC_VSYNC;
@@ -189,15 +261,43 @@ NTSTATUS AdrenoDispStart(PADRENO_WDDM_DISPLAY disp, HANDLE device_handle,
              (uint64_t)disp->fb_pa.QuadPart, (uint64_t)disp->fb_size);
     }
 
+    KeInitializeEvent(&disp->scanout_event, SynchronizationEvent, FALSE);
+    disp->scanout_stop = 0;
+    disp->scanout_dirty = 0;
+    disp->scanout_blits = 0;
+    {
+        HANDLE hThread = NULL;
+        OBJECT_ATTRIBUTES oa;
+        InitializeObjectAttributes(&oa, NULL, OBJ_KERNEL_HANDLE, NULL, NULL);
+        st = PsCreateSystemThread(&hThread, THREAD_ALL_ACCESS, &oa, NULL, NULL,
+                                  AdrenoDispScanoutThread, disp);
+        if (NT_SUCCESS(st) && hThread) {
+            (void)ObReferenceObjectByHandle(hThread, THREAD_ALL_ACCESS,
+                                            *PsThreadType, KernelMode,
+                                            (PVOID *)&disp->scanout_thread, NULL);
+            ZwClose(hThread);
+        }
+    }
+
     KeInitializeTimerEx(&disp->vsync_timer, NotificationTimer);
     KeInitializeDpc(&disp->vsync_dpc, AdrenoDispVsyncDpc, disp);
     disp->enabled = TRUE;
     disp->source_visible = TRUE;
 
-    DLog("Full WDDM Display initialized: %ux%u@60Hz pitch=%u fb_pa=0x%llx va=%p",
+    DLog("Full WDDM Display initialized: %ux%u@60Hz pitch=%u fb_pa=0x%llx va=%p scanout_thr=%p",
          disp->width, disp->height, disp->pitch,
-         (uint64_t)disp->fb_pa.QuadPart, disp->fb_va);
+         (uint64_t)disp->fb_pa.QuadPart, disp->fb_va, disp->scanout_thread);
     return STATUS_SUCCESS;
+}
+
+VOID AdrenoDispSetAperture(PADRENO_WDDM_DISPLAY disp,
+                           const uint64_t *aperture_pa,
+                           uint32_t aperture_pages)
+{
+    if (!disp)
+        return;
+    disp->aperture_pa = aperture_pa;
+    disp->aperture_pages = aperture_pages;
 }
 
 VOID AdrenoDispStop(PADRENO_WDDM_DISPLAY disp)
@@ -209,12 +309,20 @@ VOID AdrenoDispStop(PADRENO_WDDM_DISPLAY disp)
     KeCancelTimer(&disp->vsync_timer);
     KeFlushQueuedDpcs();
 
+    if (disp->scanout_thread) {
+        InterlockedExchange(&disp->scanout_stop, 1);
+        KeSetEvent(&disp->scanout_event, IO_NO_INCREMENT, FALSE);
+        KeWaitForSingleObject(disp->scanout_thread, Executive, KernelMode, FALSE, NULL);
+        ObDereferenceObject(disp->scanout_thread);
+        disp->scanout_thread = NULL;
+    }
+
     if (disp->fb_va) {
         MmUnmapIoSpace(disp->fb_va, disp->fb_size);
         disp->fb_va = NULL;
     }
     disp->enabled = FALSE;
-    DLog("Display stopped (vsyncs=%ld)", disp->vsync_count);
+    DLog("Display stopped (vsyncs=%ld blits=%ld)", disp->vsync_count, disp->scanout_blits);
 }
 
 /* ---- Child Relations / Status / EDID ----------------------------------- */
@@ -676,8 +784,12 @@ NTSTATUS AdrenoDispSetVidPnSourceAddress(
     if (!disp || !disp->enabled || !arg)
         return STATUS_INVALID_PARAMETER;
 
-    disp->current_primary_pa = arg->PrimaryAddress;
+    /* IRQL-safe (may execute at DIRQL): record primary surface and let
+     * 60 Hz VSync DPC wake our PASSIVE_LEVEL scanout blit thread. */
+    disp->current_primary_seg   = arg->PrimarySegment;
+    disp->current_primary_pa    = arg->PrimaryAddress;
     disp->current_primary_alloc = arg->hAllocation;
+    InterlockedExchange(&disp->scanout_dirty, 1);
     return STATUS_SUCCESS;
 }
 
